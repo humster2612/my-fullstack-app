@@ -1,17 +1,10 @@
-import express from 'express'
-import cors from 'cors'
-import 'dotenv/config'
+const express = require('express')
+const cors = require('cors')
+require('dotenv').config()
 
 const app = express()
 app.use(express.json())
-
-// Разрешаем CORS с прод-домена фронта (подставишь позже)
-// Локально Vite-прокси обойдёт CORS.
-const allowedOrigin = process.env.CLIENT_ORIGIN
-app.use(cors({
-  origin: allowedOrigin ? [allowedOrigin] : true,
-  credentials: true
-}))
+app.use(cors())
 
 app.get('/api/hello', (req, res) => {
   res.json({ message: 'Привет с backend 👋' })
