@@ -1,15 +1,98 @@
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
+// server/prisma/schema.prisma
 
 generator client {
   provider = "prisma-client-js"
 }
 
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/* ---------- Пользователи ---------- */
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
   password  String
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  /* Уже были у тебя: */
+  username  String   @unique
+  avatarUrl String   @default("")
+  bio       String   @default("")
+  location  String   @default("")
+  followers Int      @default(0)
+  following Int      @default(0)
+  links     Json?                // можно хранить массив строк
+
+  /* Отношения follow (как у тебя было, не трогаем имена связей): */
+  followingRels Follow[] @relation("UserFollowing")
+  followersRels Follow[] @relation("UserFollowers")
+
+  /* Посты автора */
+  posts Post[]
+
+  /* --- Новое для тематики видеографов/фотографов --- */
+  role            Role       @default(CLIENT) // CLIENT | VIDEOGRAPHER | PHOTOGRAPHER
+  specialization  String[]   @default([])     // напр.: ["weddings","events"]
+  pricePerHour    Int?                         // цена/час
+  portfolioVideos String[]   @default([])      // ссылки на видео (YouTube/Vimeo/файлы)
+
+  /* Бронирования */
+  clientBookings       Booking[] @relation("ClientBookings")
+  videographerBookings Booking[] @relation("VideographerBookings")
+}
+
+enum Role {
+  CLIENT
+  VIDEOGRAPHER
+  PHOTOGRAPHER
+}
+
+/* ---------- Подписки ---------- */
+model Follow {
+  id          Int      @id @default(autoincrement())
+  followerId  Int
+  followingId Int
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("UserFollowing", fields: [followerId], references: [id])
+  following User @relation("UserFollowers", fields: [followingId], references: [id])
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+/* ---------- Посты (фото/видео) ---------- */
+model Post {
+  id        Int      @id @default(autoincrement())
+  authorId  Int
+  imageUrl  String?               // было String → делаем опциональным
+  videoUrl  String?               // добавили видео-урл
+  caption   String   @default("")
+  location  String   @default("")
+  createdAt DateTime @default(now())
+
+  author    User     @relation(fields: [authorId], references: [id])
+
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+/* ---------- Бронирования ---------- */
+model Booking {
+  id             Int      @id @default(autoincrement())
+  clientId       Int
+  videographerId Int
+  date           DateTime
+  status         String   @default("pending") // pending | confirmed | declined | cancelled | done
+  note           String?
+
+  client       User @relation("ClientBookings", fields: [clientId], references: [id])
+  videographer User @relation("VideographerBookings", fields: [videographerId], references: [id])
+
+  @@index([videographerId, date])
+  @@index([clientId, date])
 }
