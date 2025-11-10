@@ -134,3 +134,53 @@ export type UpdateMeProPayload = {
     return data as { booking: any };
   }
   
+
+
+  // --- Provider availability ---
+// export async function getProviderAvailability(username: string) {
+//     const { data } = await api.get(`/api/providers/${encodeURIComponent(username)}/availability`);
+//     return data as { slots: { id:number; startsAt:string; endsAt:string; isBooked:boolean }[] };
+//   }
+  
+//   export async function createAvailability(startsAt: string, endsAt: string) {
+//     const { data } = await api.post('/api/availability', { startsAt, endsAt });
+//     return data as { slot: { id:number; startsAt:string; endsAt:string; isBooked:boolean } };
+//   }
+  
+//   export async function deleteAvailability(id: number) {
+//     const { data } = await api.delete(`/api/availability/${id}`);
+//     return data as { ok: true };
+//   }
+  
+//   export async function bookBySlot(slotId: number, note: string = "") {
+//     const { data } = await api.post('/api/bookings/by-slot', { slotId, note });
+//     return data as { booking: { id:number; status:string; date:string } };
+//   }
+  export async function getProviderUnavailability(username: string) {
+    const { data } = await api.get(`/api/providers/${encodeURIComponent(username)}/calendar`);
+    return data as {
+      busy: { id:number; startsAt:string; endsAt:string }[];
+      bookings: { id:number; date:string; status:string }[];
+    };
+  }
+  
+  export async function createUnavailability(startsAt: string, endsAt: string) {
+    const { data } = await api.post("/api/unavailability", { startsAt, endsAt });
+    return data as { item: { id:number; startsAt:string; endsAt:string } };
+  }
+  
+  export async function deleteUnavailability(id: number) {
+    const { data } = await api.delete(`/api/unavailability/${id}`);
+    return data as { ok: true };
+  }
+  
+  export async function getProviderIdByUsername(username: string) {
+    const { data } = await api.get(`/api/provider-id/${encodeURIComponent(username)}`);
+    return data as { id:number };
+  }
+  
+  export async function createBookingByDate(videographerId: number|string, isoDate: string, note?: string) {
+    const { data } = await api.post("/api/bookings", { videographerId, date: isoDate, note });
+    return data as { booking: { id:number; status:string; date:string } };
+  }
+  

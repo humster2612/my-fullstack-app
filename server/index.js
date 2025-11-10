@@ -447,6 +447,36 @@ app.post('/api/bookings', auth, async (req, res) => {
       res.status(500).json({ error: 'create booking failed' });
     }
   });
+
+
+//       // длительность сессии по умолчанию: 60 минут
+// const when = new Date(date);
+// const whenEnd = new Date(when.getTime() + 60 * 60 * 1000);
+
+// // 1) конфликт с пометками "занято"
+// const busy = await prisma.unavailability.findFirst({
+//   where: {
+//     providerId: Number(videographerId),
+//     startsAt: { lt: whenEnd },
+//     endsAt:   { gt: when }
+//   },
+//   select: { id: true }
+// });
+// if (busy) return res.status(400).json({ error: 'Этот интервал занят провайдером' });
+
+// // 2) конфликт с другими бронированиями (ожидающими/подтверждёнными)
+// const conflictBooking = await prisma.booking.findFirst({
+//   where: {
+//     videographerId: Number(videographerId),
+//     status: { in: ['pending','confirmed'] },
+//     // простая проверка пересечения на 60 мин
+//     date: { gte: new Date(when.getTime() - 60 * 60 * 1000), lte: whenEnd }
+//   },
+//   select: { id: true }
+// });
+// if (conflictBooking) return res.status(400).json({ error: 'Это время уже забронировано' });
+
+  
   
   // Список моих бронирований как клиента
   app.get('/api/bookings/my', auth, async (req, res) => {
@@ -501,6 +531,42 @@ app.post('/api/bookings', auth, async (req, res) => {
     }
   });
   
+  // ------ BOOKING по слоту ------
+app.post('/api/bookings/by-slot', auth, async (req, res) => {
+    try {
+      const { slotId, note } = req.body;
+      const slot = await prisma.availability.findUnique({
+        where: { id: Number(slotId) }
+      });
+      if (!slot || slot.isBooked) {
+        return res.status(400).json({ error: 'Slot unavailable' });
+      }
+      if (slot.providerId === req.userId) {
+        return res.status(400).json({ error: 'Нельзя бронировать у себя' });
+      }
+  
+      const booking = await prisma.booking.create({
+        data: {
+          clientId: req.userId,
+          videographerId: slot.providerId,
+          date: slot.startsAt,
+          note: note || '',
+          status: 'pending'
+        },
+        select: { id: true, status: true, date: true }
+      });
+  
+      await prisma.availability.update({
+        where: { id: slot.id },
+        data: { isBooked: true }
+      });
+  
+      res.status(201).json({ booking });
+    } catch (e) {
+      console.error('POST /api/bookings/by-slot', e);
+      res.status(500).json({ error: 'Booking failed' });
+    }
+  });
 
 /* ------------------- START --------------------- */
 const PORT = process.env.PORT || 4000
@@ -541,4 +607,149 @@ app.get('/api/feed', auth, async (req, res) => {
       res.status(500).json({ error: 'server error' })
     }
   })
+  
+
+
+
+  // ------ AVAILABILITY (для провайдеров) ------
+
+// Создать слот (только провайдер)
+app.post('/api/availability', auth, async (req, res) => {
+    try {
+      const me = await prisma.user.findUnique({
+        where: { id: req.userId },
+        select: { role: true }
+      });
+      if (!me || (me.role !== 'VIDEOGRAPHER' && me.role !== 'PHOTOGRAPHER')) {
+        return res.status(403).json({ error: 'Only providers can create availability' });
+      }
+  
+      const { startsAt, endsAt } = req.body;
+      if (!startsAt || !endsAt) {
+        return res.status(400).json({ error: 'startsAt и endsAt обязательны' });
+      }
+  
+      const s = new Date(startsAt);
+      const e = new Date(endsAt);
+      if (!(s < e)) return res.status(400).json({ error: 'Некорректный интервал' });
+  
+      const slot = await prisma.availability.create({
+        data: { providerId: req.userId, startsAt: s, endsAt: e },
+        select: { id: true, startsAt: true, endsAt: true, isBooked: true }
+      });
+      res.status(201).json({ slot });
+    } catch (e) {
+      console.error('POST /api/availability', e);
+      res.status(500).json({ error: 'Create slot failed' });
+    }
+  });
+  
+  // Удалить свой слот (если не забронирован)
+  app.delete('/api/availability/:id', auth, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const slot = await prisma.availability.findUnique({ where: { id } });
+      if (!slot || slot.providerId !== req.userId) {
+        return res.status(404).json({ error: 'Not found' });
+      }
+      if (slot.isBooked) {
+        return res.status(400).json({ error: 'Slot already booked' });
+      }
+  
+      await prisma.availability.delete({ where: { id } });
+      res.json({ ok: true });
+    } catch (e) {
+      console.error('DELETE /api/availability/:id', e);
+      res.status(500).json({ error: 'Delete slot failed' });
+    }
+  });
+  
+  // Публично: свободные слоты провайдера по username
+  app.get('/api/providers/:username/availability', async (req, res) => {
+    try {
+      const u = await prisma.user.findUnique({
+        where: { username: req.params.username },
+        select: { id: true, role: true }
+      });
+      if (!u) return res.status(404).json({ error: 'User not found' });
+      if (u.role !== 'VIDEOGRAPHER' && u.role !== 'PHOTOGRAPHER') {
+        return res.json({ slots: [] });
+      }
+  
+      const slots = await prisma.availability.findMany({
+        where: { providerId: u.id, isBooked: false, startsAt: { gt: new Date() } },
+        orderBy: { startsAt: 'asc' },
+        select: { id: true, startsAt: true, endsAt: true, isBooked: true }
+      });
+      res.json({ slots });
+    } catch (e) {
+      console.error('GET /api/providers/:username/availability', e);
+      res.status(500).json({ error: 'Load slots failed' });
+    }
+  });
+
+
+  // провайдер помечает "занято"
+app.post('/api/unavailability', auth, async (req, res) => {
+    const me = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true } });
+    if (!me || (me.role !== 'VIDEOGRAPHER' && me.role !== 'PHOTOGRAPHER')) {
+      return res.status(403).json({ error: 'Only providers can mark busy' });
+    }
+    const { startsAt, endsAt } = req.body;
+    if (!startsAt || !endsAt) return res.status(400).json({ error: 'startsAt/endsAt required' });
+  
+    const s = new Date(startsAt), e = new Date(endsAt);
+    if (!(s < e)) return res.status(400).json({ error: 'Invalid interval' });
+  
+    const item = await prisma.unavailability.create({
+      data: { providerId: req.userId, startsAt: s, endsAt: e },
+      select: { id: true, startsAt: true, endsAt: true }
+    });
+    res.status(201).json({ item });
+  });
+  
+  // удалить свою занятость
+  app.delete('/api/unavailability/:id', auth, async (req, res) => {
+    const id = Number(req.params.id);
+    const item = await prisma.unavailability.findUnique({ where: { id } });
+    if (!item || item.providerId !== req.userId) return res.status(404).json({ error: 'Not found' });
+    await prisma.unavailability.delete({ where: { id } });
+    res.json({ ok: true });
+  });
+  
+  // публичный календарь провайдера (занято + брони)
+  app.get('/api/providers/:username/calendar', async (req, res) => {
+    const u = await prisma.user.findUnique({
+      where: { username: req.params.username },
+      select: { id: true, role: true }
+    });
+    if (!u) return res.status(404).json({ error: 'User not found' });
+    if (u.role !== 'VIDEOGRAPHER' && u.role !== 'PHOTOGRAPHER') {
+      return res.json({ busy: [], bookings: [] });
+    }
+    const busy = await prisma.unavailability.findMany({
+      where: { providerId: u.id, endsAt: { gt: new Date() } },
+      orderBy: { startsAt: 'asc' },
+      select: { id: true, startsAt: true, endsAt: true }
+    });
+    const bookings = await prisma.booking.findMany({
+      where: { videographerId: u.id, date: { gt: new Date() } },
+      orderBy: { date: 'asc' },
+      select: { id: true, date: true, status: true }
+    });
+    res.json({ busy, bookings });
+  });
+  
+  // получить id провайдера по username (для брони)
+  app.get('/api/provider-id/:username', async (req, res) => {
+    const u = await prisma.user.findUnique({
+      where: { username: req.params.username },
+      select: { id: true, role: true }
+    });
+    if (!u) return res.status(404).json({ error: 'User not found' });
+    if (u.role !== 'VIDEOGRAPHER' && u.role !== 'PHOTOGRAPHER') {
+      return res.status(400).json({ error: 'Not a provider' });
+    }
+    res.json({ id: u.id });
+  });
   

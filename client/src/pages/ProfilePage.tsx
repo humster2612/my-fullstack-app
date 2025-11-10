@@ -154,7 +154,17 @@ export default function ProfilePage() {
             </button>
           )
         )}
+
       </header>
+
+      
+
+      {isProvider && (
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <Link to={`/book/${user.username}`}>See schedule (book)</Link>
+          {isMe && <Link to="/schedule">Open my schedule</Link>}
+        </div>
+      )}
 
    {/* Кнопка бронирования — только если это провайдер и это не мой профиль */}
 {canBook && <BookForm providerId={user.id} />}

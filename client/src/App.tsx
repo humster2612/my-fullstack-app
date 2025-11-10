@@ -14,6 +14,9 @@ import PeoplePage from "./pages/PeoplePage";
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import CreatePostPage from "./pages/CreatePostPage";
+// import SchedulePage from "./pages/SchedulePage";
+import BookProviderPage from "./pages/BookProviderPage";
+import ProviderSchedulePage from "./pages/ProviderSchedulePage";
 
 import { loginUser, registerUser, getMe } from "./api";
 
@@ -21,6 +24,7 @@ type User = {
   id: number | string;
   email: string;
   username?: string;
+  role?: 'CLIENT' | 'VIDEOGRAPHER' | 'PHOTOGRAPHER';
 };
 
 function App() {
@@ -65,6 +69,10 @@ function App() {
           )}
           {!!user && <Link to="/settings">Settings</Link>}
           {!!user && <Link to="/create">Create</Link>}
+          {!!user && (user.role === 'VIDEOGRAPHER' || user.role === 'PHOTOGRAPHER') && (
+  <Link to="/schedule">Schedule</Link>
+)}
+
           <div style={{ marginLeft: "auto" }} />
           {!!user ? (
             <button onClick={handleLogout} style={{ cursor: "pointer" }}>
@@ -97,6 +105,10 @@ function App() {
               user ? <CreatePostPage /> : <Navigate to="/login" replace />
             }
           />
+         <Route path="/schedule" element={user ? <ProviderSchedulePage /> : <Navigate to="/login" replace />} />
+
+<Route path="/book/:username" element={<BookProviderPage/>} />
+
 
           {/* Auth */}
           <Route
