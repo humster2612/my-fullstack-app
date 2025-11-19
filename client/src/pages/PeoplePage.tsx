@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { listUsers, followUser, unfollowUser } from "../api";
 import { Link } from "react-router-dom";
 import Avatar from "../Avatar";
-
+import WorldProvidersMap from "./WorldProvidersMap";
 type Person = {
   id: number | string;
   username: string;
@@ -62,6 +62,7 @@ export default function PeoplePage() {
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
+        <WorldProvidersMap />
       <h2>People</h2>
 
       <input

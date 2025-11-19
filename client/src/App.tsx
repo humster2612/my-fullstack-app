@@ -17,6 +17,9 @@ import CreatePostPage from "./pages/CreatePostPage";
 // import SchedulePage from "./pages/SchedulePage";
 import BookProviderPage from "./pages/BookProviderPage";
 import ProviderSchedulePage from "./pages/ProviderSchedulePage";
+import BookingRequestsPage from "./pages/BookingRequestsPage";
+import MyBookingsPage from "./pages/MyBookingsPage";
+
 
 import { loginUser, registerUser, getMe } from "./api";
 
@@ -106,6 +109,9 @@ function App() {
             }
           />
          <Route path="/schedule" element={user ? <ProviderSchedulePage /> : <Navigate to="/login" replace />} />
+         <Route path="/booking-requests" element={<BookingRequestsPage />} />
+<Route path="/my-bookings" element={<MyBookingsPage />} />
+
 
 <Route path="/book/:username" element={<BookProviderPage/>} />
 
@@ -133,7 +139,11 @@ function App() {
           />
 
           {/* fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* <Route path="*" element={<Navigate to="/" replace />} /> */}
+          <Route path="*" element={<div>Page not found</div>} />
+
+
+
         </Routes>
       </div>
     </BrowserRouter>

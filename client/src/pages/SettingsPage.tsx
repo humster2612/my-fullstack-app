@@ -1,7 +1,8 @@
 // client/src/pages/SettingsPage.tsx
 import { useEffect, useState } from "react";
-import { getMe, uploadAvatar, updateMePro } from "../api";
 import { useNavigate } from "react-router-dom";
+import { getMe, uploadAvatar, updateMePro } from "../api";
+import { CITY_OPTIONS, type CityOption } from "../locationOptions";
 
 type Me = {
   id: number | string;
@@ -11,18 +12,46 @@ type Me = {
   bio?: string;
   location?: string;
   links?: string[];
-  // новые поля
+
   role?: "CLIENT" | "VIDEOGRAPHER" | "PHOTOGRAPHER";
   specialization?: string[];
   pricePerHour?: number | null;
   portfolioVideos?: string[];
+
+  latitude?: number | null;
+  longitude?: number | null;
 };
+
+// 👇 helper-функция, чтобы красиво собрать текст локации
+function formatLocationFromCity(city: CityOption | undefined): string {
+  if (!city) return "";
+
+  const anyCity = city as any;
+
+  if (anyCity.city && anyCity.country) {
+    return `${anyCity.city}, ${anyCity.country}`;
+  }
+
+  if (anyCity.label) {
+    return String(anyCity.label);
+  }
+
+  return String(anyCity.id);
+}
 
 export default function SettingsPage() {
   const nav = useNavigate();
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // выбор города + координаты
+  const [selectedCityId, setSelectedCityId] = useState<CityOption["id"] | "">(
+    ""
+  );
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
 
   // базовые поля
   const [username, setUsername] = useState("");
@@ -36,7 +65,9 @@ export default function SettingsPage() {
   const [preview, setPreview] = useState<string | null>(null);
 
   // новые поля (роль/направления/цена/видео)
-  const [role, setRole] = useState<"CLIENT" | "VIDEOGRAPHER" | "PHOTOGRAPHER">("CLIENT");
+  const [role, setRole] = useState<
+    "CLIENT" | "VIDEOGRAPHER" | "PHOTOGRAPHER"
+  >("CLIENT");
   const [spec, setSpec] = useState(""); // строка через запятую
   const [price, setPrice] = useState<number | null>(null);
   const [videos, setVideos] = useState(""); // строка ссылок через запятую
@@ -58,6 +89,20 @@ export default function SettingsPage() {
         setSpec((u.specialization || []).join(", "));
         setPrice(typeof u.pricePerHour === "number" ? u.pricePerHour : null);
         setVideos((u.portfolioVideos || []).join(", "));
+
+        // если с бэка уже пришли координаты — попытаемся найти город в списке
+        if (typeof u.latitude === "number" && typeof u.longitude === "number") {
+          const found = CITY_OPTIONS.find(
+            (c) =>
+              Math.abs(c.lat - u.latitude!) < 0.01 &&
+              Math.abs(c.lng - u.longitude!) < 0.01
+          );
+          if (found) {
+            setSelectedCityId(found.id);
+            setLat(found.lat);
+            setLng(found.lng);
+          }
+        }
       } catch (e: any) {
         setErr(e?.response?.data?.error || "Failed to load profile");
       } finally {
@@ -85,16 +130,42 @@ export default function SettingsPage() {
     }
   }
 
+  // смена города в селекте
+  function handleCityChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const value = e.target.value as CityOption["id"] | "";
+    setSelectedCityId(value);
+
+    const found = CITY_OPTIONS.find((c) => c.id === value);
+    if (found) {
+      setLat(found.lat);
+      setLng(found.lng);
+      // авто-заполняем текстовое поле Location
+      setLocation(formatLocationFromCity(found));
+    } else {
+      setLat(null);
+      setLng(null);
+    }
+  }
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
     setSaving(true);
     try {
-      const linksArray = links.split(",").map(s => s.trim()).filter(Boolean);
-      const specialization = spec.split(",").map(s => s.trim()).filter(Boolean);
-      const portfolioVideos = videos.split(",").map(s => s.trim()).filter(Boolean);
+      const linksArray = links
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const specialization = spec
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const portfolioVideos = videos
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
 
-      const res = await updateMePro({
+      const payload: any = {
         username,
         avatarUrl,
         bio,
@@ -103,8 +174,12 @@ export default function SettingsPage() {
         role,
         specialization,
         pricePerHour: Number.isFinite(Number(price)) ? Number(price) : null,
-        portfolioVideos
-      });
+        portfolioVideos,
+        latitude: lat,
+        longitude: lng,
+      };
+
+      const res = await updateMePro(payload);
 
       const newUsername = res?.user?.username || username;
       nav(`/profile/${newUsername}`);
@@ -118,11 +193,22 @@ export default function SettingsPage() {
   if (loading) return <div>Loading settings...</div>;
 
   return (
-    <form onSubmit={submit} style={{ display: "grid", gap: 12 }} autoComplete="off">
+    <form
+      onSubmit={submit}
+      style={{ display: "grid", gap: 12 }}
+      autoComplete="off"
+    >
       <h2>Profile settings</h2>
 
       {/* Аватар */}
-      <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+          flexWrap: "wrap",
+        }}
+      >
         <img
           src={preview || "https://via.placeholder.com/96"}
           alt="avatar"
@@ -131,8 +217,14 @@ export default function SettingsPage() {
           style={{ borderRadius: "50%", objectFit: "cover" }}
         />
         <label style={{ display: "inline-block" }}>
-          <span>Upload avatar</span><br />
-          <input type="file" accept="image/*" onChange={onFileChange} disabled={uploading} />
+          <span>Upload avatar</span>
+          <br />
+          <input
+            type="file"
+            accept="image/*"
+            onChange={onFileChange}
+            disabled={uploading}
+          />
         </label>
         {uploading && <span>Uploading...</span>}
       </div>
@@ -140,33 +232,65 @@ export default function SettingsPage() {
       {/* Username */}
       <label>
         Username
-        <input value={username} onChange={e => setUsername(e.target.value)} required autoComplete="off" />
+        <input
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          required
+          autoComplete="off"
+        />
       </label>
 
       {/* Прямая ссылка на аватар (необязательно) */}
       <label>
         Avatar URL (optional)
-        <input value={avatarUrl} onChange={e => setAvatarUrl(e.target.value)} placeholder="https://..." autoComplete="off" />
+        <input
+          value={avatarUrl}
+          onChange={(e) => setAvatarUrl(e.target.value)}
+          placeholder="https://..."
+          autoComplete="off"
+        />
       </label>
 
-      {/* Локация */}
+      {/* Локация текстом */}
       <label>
-        Location
-        <input value={location} onChange={e => setLocation(e.target.value)} autoComplete="off" />
+        Location (text)
+        <input
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          autoComplete="off"
+          placeholder="Prague, Czech Republic"
+        />
+      </label>
+
+      {/* Город для карты */}
+      <label>
+        City for map
+        <select value={selectedCityId} onChange={handleCityChange}>
+          <option value="">Not selected</option>
+          {CITY_OPTIONS.map((c) => (
+            <option key={c.id} value={c.id}>
+              {String((c as any).label ?? (c as any).city ?? c.id)}
+            </option>
+          ))}
+        </select>
       </label>
 
       {/* Bio */}
       <label>
         Bio
-        <textarea value={bio} onChange={e => setBio(e.target.value)} rows={4} />
+        <textarea
+          value={bio}
+          onChange={(e) => setBio(e.target.value)}
+          rows={4}
+        />
       </label>
 
       {/* Ссылки */}
       <label>
-        Links 
+        Links
         <input
           value={links}
-          onChange={e => setLinks(e.target.value)}
+          onChange={(e) => setLinks(e.target.value)}
           autoComplete="off"
           placeholder="https://..., https://..."
         />
@@ -209,7 +333,7 @@ export default function SettingsPage() {
 
       {/* Видео портфолио */}
       <label>
-        Portfolio videos 
+        Portfolio videos
         <input
           value={videos}
           onChange={(e) => setVideos(e.target.value)}
@@ -217,7 +341,9 @@ export default function SettingsPage() {
         />
       </label>
 
-      <button type="submit" disabled={saving}>{saving ? "Saving..." : "Save"}</button>
+      <button type="submit" disabled={saving}>
+        {saving ? "Saving..." : "Save"}
+      </button>
       {err && <div style={{ color: "crimson" }}>{err}</div>}
     </form>
   );

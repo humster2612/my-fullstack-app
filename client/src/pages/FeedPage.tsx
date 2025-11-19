@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getFeed } from "../api";
 import { Link } from "react-router-dom";
 
+
 type FeedPost = {
   id: number | string;
   imageUrl: string;

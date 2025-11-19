@@ -145,7 +145,10 @@ app.patch('/api/users/me', auth, async (req, res) => {
         role,
         specialization,
         pricePerHour,
-        portfolioVideos
+        portfolioVideos,
+  
+        latitude,
+        longitude,
       } = req.body;
   
       // Проверка: уникальный username
@@ -164,17 +167,25 @@ app.patch('/api/users/me', auth, async (req, res) => {
       if (typeof location === 'string') data.location = location.trim();
       if (Array.isArray(links)) data.links = links;
   
-      // --- Новые поля для видеографов/фотографов ---
       if (role && ['CLIENT', 'VIDEOGRAPHER', 'PHOTOGRAPHER'].includes(role))
         data.role = role;
       if (Array.isArray(specialization))
         data.specialization = specialization.map(String);
       if (pricePerHour !== undefined)
-        data.pricePerHour = Number.isFinite(+pricePerHour)
-          ? +pricePerHour
-          : null;
+        data.pricePerHour = Number.isFinite(+pricePerHour) ? +pricePerHour : null;
       if (Array.isArray(portfolioVideos))
         data.portfolioVideos = portfolioVideos.map(String);
+  
+      // 👇 аккуратно кладём координаты
+      if (latitude !== undefined) {
+        const latNum = Number(latitude);
+        if (!Number.isNaN(latNum)) data.latitude = latNum;
+      }
+      if (longitude !== undefined) {
+        const lngNum = Number(longitude);
+        if (!Number.isNaN(lngNum)) data.longitude = lngNum;
+      }
+  
   
       // Обновление пользователя
       const user = await prisma.user.update({
@@ -301,6 +312,43 @@ app.get('/api/users', async (req, res) => {
   }
 })
 
+
+app.get('/api/providers/map', async (req, res) => {
+    try {
+      const providers = await prisma.user.findMany({
+        where: {
+          role: { in: ['VIDEOGRAPHER', 'PHOTOGRAPHER'] },
+          latitude:  { not: null },
+          longitude: { not: null },
+        },
+        select: {
+          id: true,
+          username: true,
+          location: true,
+          specialization: true,
+          latitude: true,
+          longitude: true,
+        },
+      })
+  
+      res.json({
+        providers: providers.map((p) => ({
+          id: p.id,
+          username: p.username ?? `user${p.id}`,
+          location: p.location,
+          lat: p.latitude,          // используем поля из Prisma
+          lng: p.longitude,
+          specializations: p.specialization ?? [],
+        })),
+      })
+    } catch (e) {
+      console.error('GET /api/providers/map', e)
+      res.status(500).json({ error: 'Failed to load providers' })
+    }
+  })
+  
+  
+
 /* ---------------- AVATAR UPLOAD ---------------- */
 app.post('/api/users/me/avatar', auth, uploadAvatar.single('file'), async (req, res) => {
   try {
@@ -416,66 +464,90 @@ app.get('/api/users/:username/posts', async (req, res) => {
 
 // ===== BOOKINGS =====
 
-// Создать запрос брони к видеографу/фотографу
 app.post('/api/bookings', auth, async (req, res) => {
     try {
-      const { videographerId, date, note } = req.body;
-      if (!videographerId || !date) return res.status(400).json({ error: 'videographerId и date обязательны' });
+      const { videographerId, date, start, end, note } = req.body;
   
-      // нельзя бронировать самому себя
+      if (!videographerId) {
+        return res.status(400).json({ error: 'videographerId обязателен' });
+      }
+  
+      // Нельзя бронировать себя
       if (Number(videographerId) === Number(req.userId)) {
         return res.status(400).json({ error: 'Нельзя бронировать себя' });
       }
   
-      // проверим, что целевой пользователь — провайдер
-      const provider = await prisma.user.findUnique({ where: { id: Number(videographerId) }, select: { id: true, role: true } });
+      // Провайдер ли это?
+      const provider = await prisma.user.findUnique({
+        where: { id: Number(videographerId) },
+        select: { id: true, role: true }
+      });
       if (!provider || (provider.role !== 'VIDEOGRAPHER' && provider.role !== 'PHOTOGRAPHER')) {
         return res.status(400).json({ error: 'Пользователь не принимает брони' });
       }
   
+      // ----- Время брони -----
+      // Обратная совместимость: если пришло legacy "date" (одна точка) — считаем 60 минут.
+      const from = start ? new Date(start) : (date ? new Date(date) : null);
+      const to   = end   ? new Date(end)   : (from ? new Date(from.getTime() + 60*60*1000) : null);
+  
+      if (!from || !to) return res.status(400).json({ error: 'Укажи start/end или date' });
+      if (!(from < to))  return res.status(400).json({ error: 'Некорректный интервал' });
+      if (from < new Date()) return res.status(400).json({ error: 'Нельзя бронировать в прошлом' });
+  
+      const durationMinutes = Math.max(1, Math.round((to.getTime() - from.getTime())/60000));
+  
+      // ----- Проверка конфликтов -----
+  
+      // 1) конфликт с занятостью (busy/unavailability)
+      const busy = await prisma.unavailability.findFirst({
+        where: {
+          providerId: Number(videographerId),
+          startsAt: { lt: to },
+          endsAt:   { gt: from }
+        },
+        select: { id: true }
+      });
+      if (busy) return res.status(400).json({ error: 'Этот интервал занят провайдером' });
+  
+      // 2) конфликт с другими активными бронированиями
+      // Сначала берём брони в окне (чтоб не делать сложные вычисления в БД)
+      const windowStart = new Date(from.getTime() - 8*60*60*1000); // запас 8 часов назад
+      const conflicts = await prisma.booking.findMany({
+        where: {
+          videographerId: Number(videographerId),
+          status: { in: ['pending','confirmed'] },
+          date: { gt: windowStart, lt: new Date(to.getTime() + 8*60*60*1000) }
+        },
+        select: { id: true, date: true, durationMinutes: true }
+      });
+  
+      const overlap = conflicts.some(b => {
+        const bStart = new Date(b.date);
+        const bEnd   = new Date(bStart.getTime() + (b.durationMinutes ?? 60) * 60000);
+        return (bStart < to && bEnd > from);
+      });
+      if (overlap) return res.status(400).json({ error: 'Это время уже забронировано' });
+  
+      // ----- Создание брони -----
       const booking = await prisma.booking.create({
         data: {
           clientId: req.userId,
           videographerId: Number(videographerId),
-          date: new Date(date),
-          note: note || null
-        }
+          date: from,
+          note: note || '',
+          status: 'pending',
+          ...(typeof durationMinutes === 'number' ? { durationMinutes } : {})
+        },
+        select: { id: true, status: true, date: true, durationMinutes: true }
       });
+  
       res.status(201).json({ booking });
     } catch (e) {
       console.error('POST /api/bookings', e);
       res.status(500).json({ error: 'create booking failed' });
     }
-  });
-
-
-//       // длительность сессии по умолчанию: 60 минут
-// const when = new Date(date);
-// const whenEnd = new Date(when.getTime() + 60 * 60 * 1000);
-
-// // 1) конфликт с пометками "занято"
-// const busy = await prisma.unavailability.findFirst({
-//   where: {
-//     providerId: Number(videographerId),
-//     startsAt: { lt: whenEnd },
-//     endsAt:   { gt: when }
-//   },
-//   select: { id: true }
-// });
-// if (busy) return res.status(400).json({ error: 'Этот интервал занят провайдером' });
-
-// // 2) конфликт с другими бронированиями (ожидающими/подтверждёнными)
-// const conflictBooking = await prisma.booking.findFirst({
-//   where: {
-//     videographerId: Number(videographerId),
-//     status: { in: ['pending','confirmed'] },
-//     // простая проверка пересечения на 60 мин
-//     date: { gte: new Date(when.getTime() - 60 * 60 * 1000), lte: whenEnd }
-//   },
-//   select: { id: true }
-// });
-// if (conflictBooking) return res.status(400).json({ error: 'Это время уже забронировано' });
-
+  });  
   
   
   // Список моих бронирований как клиента
@@ -485,11 +557,13 @@ app.post('/api/bookings', auth, async (req, res) => {
       orderBy: { date: 'desc' },
       select: {
         id: true, date: true, status: true, note: true,
+        durationMinutes: true,                // 👈 добавили
         videographer: { select: { id: true, username: true, avatarUrl: true, role: true } }
       }
     });
     res.json({ bookings: list });
   });
+  
   
   // Список запросов ко мне как к провайдеру
   app.get('/api/bookings/to-me', auth, async (req, res) => {
@@ -498,40 +572,54 @@ app.post('/api/bookings', auth, async (req, res) => {
       orderBy: { date: 'asc' },
       select: {
         id: true, date: true, status: true, note: true,
+        durationMinutes: true,                // 👈 добавили
         client: { select: { id: true, username: true, avatarUrl: true } }
-      }
+      }      
     });
     res.json({ bookings: list });
   });
   
+  
   // Подтвердить/отклонить/отменить
-  app.patch('/api/bookings/:id', auth, async (req, res) => {
+  // server/index.js
+app.patch("/api/bookings/:id", async (req, res) => {
     try {
       const id = Number(req.params.id);
-      const { action } = req.body; // confirm | decline | cancel | done
+      const { action } = req.body;
   
-      const b = await prisma.booking.findUnique({ where: { id }, select: { videographerId: true, clientId: true, status: true } });
-      if (!b) return res.status(404).json({ error: 'Not found' });
+      if (!["confirm", "decline", "done"].includes(action)) {
+        return res.status(400).json({ error: "Invalid action" });
+      }
   
-      // правила: подтверждать/отклонять может только провайдер; cancel — клиент; done — провайдер
-      const me = Number(req.userId);
-      let next = b.status;
+      // Находим бронь
+      const booking = await prisma.booking.findUnique({ where: { id } });
+      if (!booking) {
+        return res.status(404).json({ error: "Booking not found" });
+      }
   
-      if (action === 'confirm' && me === b.videographerId) next = 'confirmed';
-      else if (action === 'decline' && me === b.videographerId) next = 'declined';
-      else if (action === 'cancel' && me === b.clientId) next = 'cancelled';
-      else if (action === 'done' && me === b.videographerId) next = 'done';
-      else return res.status(403).json({ error: 'not allowed' });
+      // тут можно добавить проверку, что текущий пользователь = провайдер брони
   
-      const updated = await prisma.booking.update({ where: { id }, data: { status: next } });
-      res.json({ booking: updated });
+      let newStatus = booking.status;
+      if (action === "confirm") newStatus = "confirmed";
+      if (action === "decline") newStatus = "declined";
+      if (action === "done") newStatus = "done";
+  
+      const updated = await prisma.booking.update({
+        where: { id },
+        data: { status: newStatus },
+      });
+  
+      // ВАЖНО: НИКАКИХ redirect!
+      return res.json({ booking: updated });
     } catch (e) {
-      console.error('PATCH /api/bookings/:id', e);
-      res.status(500).json({ error: 'update failed' });
+      console.error(e);
+      return res.status(500).json({ error: "Server error" });
     }
   });
   
+  
   // ------ BOOKING по слоту ------
+// ------ BOOKING по слоту ------
 app.post('/api/bookings/by-slot', auth, async (req, res) => {
     try {
       const { slotId, note } = req.body;
@@ -545,15 +633,52 @@ app.post('/api/bookings/by-slot', auth, async (req, res) => {
         return res.status(400).json({ error: 'Нельзя бронировать у себя' });
       }
   
+      // длительность слота в минутах
+      const durationMinutes = Math.max(
+        1,
+        Math.round((slot.endsAt.getTime() - slot.startsAt.getTime()) / 60000)
+      );
+  
+      // Проверка конфликтов на всякий случай (повторяем логику из POST /api/bookings)
+      const from = slot.startsAt;
+      const to   = slot.endsAt;
+  
+      const busy = await prisma.unavailability.findFirst({
+        where: {
+          providerId: slot.providerId,
+          startsAt: { lt: to },
+          endsAt:   { gt: from }
+        },
+        select: { id: true }
+      });
+      if (busy) return res.status(400).json({ error: 'Этот интервал занят провайдером' });
+  
+      const windowStart = new Date(from.getTime() - 8*60*60*1000);
+      const conflicts = await prisma.booking.findMany({
+        where: {
+          videographerId: slot.providerId,
+          status: { in: ['pending','confirmed'] },
+          date: { gt: windowStart, lt: new Date(to.getTime() + 8*60*60*1000) }
+        },
+        select: { id: true, date: true, durationMinutes: true }
+      });
+      const overlap = conflicts.some(b => {
+        const bStart = new Date(b.date);
+        const bEnd   = new Date(bStart.getTime() + (b.durationMinutes ?? 60) * 60000);
+        return (bStart < to && bEnd > from);
+      });
+      if (overlap) return res.status(400).json({ error: 'Это время уже забронировано' });
+  
       const booking = await prisma.booking.create({
         data: {
           clientId: req.userId,
           videographerId: slot.providerId,
           date: slot.startsAt,
+          durationMinutes,
           note: note || '',
           status: 'pending'
         },
-        select: { id: true, status: true, date: true }
+        select: { id: true, status: true, date: true, durationMinutes: true }
       });
   
       await prisma.availability.update({
@@ -567,6 +692,7 @@ app.post('/api/bookings/by-slot', auth, async (req, res) => {
       res.status(500).json({ error: 'Booking failed' });
     }
   });
+  
 
 /* ------------------- START --------------------- */
 const PORT = process.env.PORT || 4000
@@ -718,7 +844,9 @@ app.post('/api/unavailability', auth, async (req, res) => {
   });
   
   // публичный календарь провайдера (занято + брони)
-  app.get('/api/providers/:username/calendar', async (req, res) => {
+
+// публичный календарь провайдера (занято + брони)
+app.get('/api/providers/:username/calendar', async (req, res) => {
     const u = await prisma.user.findUnique({
       where: { username: req.params.username },
       select: { id: true, role: true }
@@ -727,18 +855,24 @@ app.post('/api/unavailability', auth, async (req, res) => {
     if (u.role !== 'VIDEOGRAPHER' && u.role !== 'PHOTOGRAPHER') {
       return res.json({ busy: [], bookings: [] });
     }
+  
     const busy = await prisma.unavailability.findMany({
       where: { providerId: u.id, endsAt: { gt: new Date() } },
       orderBy: { startsAt: 'asc' },
       select: { id: true, startsAt: true, endsAt: true }
     });
+  
     const bookings = await prisma.booking.findMany({
       where: { videographerId: u.id, date: { gt: new Date() } },
       orderBy: { date: 'asc' },
-      select: { id: true, date: true, status: true }
+      // ▼ ДОБАВИЛИ durationMinutes
+      select: { id: true, date: true, status: true, durationMinutes: true }
     });
+  
     res.json({ busy, bookings });
   });
+  
+  
   
   // получить id провайдера по username (для брони)
   app.get('/api/provider-id/:username', async (req, res) => {

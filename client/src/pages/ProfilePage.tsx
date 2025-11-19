@@ -167,7 +167,7 @@ export default function ProfilePage() {
       )}
 
    {/* Кнопка бронирования — только если это провайдер и это не мой профиль */}
-{canBook && <BookForm providerId={user.id} />}
+{/* {canBook && <BookForm providerId={user.id} />} */}
 
 {user.bio && <p>{user.bio}</p>}
 
@@ -259,53 +259,53 @@ export default function ProfilePage() {
 }
 
 /* ---------- Форма бронирования ---------- */
-function BookForm({ providerId }: { providerId: number | string }) {
-  const [date, setDate] = useState<string>("");
-  const [note, setNote] = useState<string>("");
-  const [ok, setOk] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+// function BookForm({ providerId }: { providerId: number | string }) {
+//   const [date, setDate] = useState<string>("");
+//   const [note, setNote] = useState<string>("");
+//   const [ok, setOk] = useState<string | null>(null);
+//   const [err, setErr] = useState<string | null>(null);
+//   const [loading, setLoading] = useState(false);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErr(null);
-    setOk(null);
-    if (!date) {
-      setErr("Выберите дату");
-      return;
-    }
-    try {
-      setLoading(true);
-      await createBooking(providerId, new Date(date).toISOString(), note);
-      setOk("Запрос отправлен!");
-      setDate("");
-      setNote("");
-    } catch (e: any) {
-      setErr(e?.response?.data?.error || "Ошибка бронирования");
-    } finally {
-      setLoading(false);
-    }
-  };
+//   const submit = async (e: React.FormEvent) => {
+//     e.preventDefault();
+//     setErr(null);
+//     setOk(null);
+//     if (!date) {
+//       setErr("Выберите дату");
+//       return;
+//     }
+//     try {
+//       setLoading(true);
+//       await createBooking(providerId, new Date(date).toISOString(), note);
+//       setOk("Запрос отправлен!");
+//       setDate("");
+//       setNote("");
+//     } catch (e: any) {
+//       setErr(e?.response?.data?.error || "Ошибка бронирования");
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
 
-  return (
-    <form
-      onSubmit={submit}
-      style={{ display: "grid", gap: 8, maxWidth: 360, margin: "12px 0" }}
-    >
-      <h3>Book session</h3>
-      <input
-        type="datetime-local"
-        value={date}
-        onChange={(e) => setDate(e.target.value)}
-      />
-      <input
-        placeholder="Note (optional)"
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-      />
-      <button disabled={loading}>{loading ? "Sending..." : "Send request"}</button>
-      {ok && <div style={{ color: "limegreen" }}>{ok}</div>}
-      {err && <div style={{ color: "crimson" }}>{err}</div>}
-    </form>
-  );
-}
+//   return (
+//     <form
+//       onSubmit={submit}
+//       style={{ display: "grid", gap: 8, maxWidth: 360, margin: "12px 0" }}
+//     >
+//       <h3>Book session</h3>
+//       <input
+//         type="datetime-local"
+//         value={date}
+//         onChange={(e) => setDate(e.target.value)}
+//       />
+//       <input
+//         placeholder="Note (optional)"
+//         value={note}
+//         onChange={(e) => setNote(e.target.value)}
+//       />
+//       <button disabled={loading}>{loading ? "Sending..." : "Send request"}</button>
+//       {ok && <div style={{ color: "limegreen" }}>{ok}</div>}
+//       {err && <div style={{ color: "crimson" }}>{err}</div>}
+//     </form>
+//   );
+// }

@@ -1,12 +1,13 @@
 // prisma/schema.prisma
 
-generator client {
-  provider = "prisma-client-js"
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")   // POOLER (Prisma)
+  directUrl = env("DIRECT_URL")     // DIRECT (без pooler) — для миграций
 }
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+generator client {
+  provider = "prisma-client-js"
 }
 
 enum Role {
@@ -35,6 +36,9 @@ model User {
   pricePerHour    Int?
   portfolioVideos String[] @default([])
 
+  latitude   Float?  // широта
+  longitude  Float?  // долгота
+
   posts         Post[]
   followingRels Follow[] @relation("UserFollowing")
   followersRels Follow[] @relation("UserFollowers")
@@ -44,6 +48,7 @@ model User {
   providerBookings Booking[]      @relation("ProviderBookings")
 
   unavailability      Unavailability[]
+
 }
 
 model Post {
@@ -91,10 +96,13 @@ model Booking {
   clientId       Int
   videographerId Int
   date           DateTime
-  status         String   @default("pending") // pending|confirmed|declined|cancelled|done
+  durationMinutes Int      @default(60)
+  status         String   @default("pending")
   note           String?
 
-  client       User @relation("ClientBookings", fields: [clientId], references: [id])
+
+
+  client       User @relation("ClientBookings",   fields: [clientId],       references: [id])
   videographer User @relation("ProviderBookings", fields: [videographerId], references: [id])
 
   @@index([videographerId, date])

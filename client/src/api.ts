@@ -100,7 +100,7 @@ export async function getFeed(params?: { cursor?: number | string; limit?: numbe
   
 
   // ===== Profile extensions =====
-export type UpdateMeProPayload = {
+  export type UpdateMeProPayload = {
     role?: 'CLIENT' | 'VIDEOGRAPHER' | 'PHOTOGRAPHER';
     specialization?: string[];
     pricePerHour?: number | null;
@@ -110,7 +110,11 @@ export type UpdateMeProPayload = {
     avatarUrl?: string;
     bio?: string;
     username?: string;
+  
+    latitude?: number | null;
+    longitude?: number | null;
   };
+  
   export async function updateMePro(payload: UpdateMeProPayload) {
     const { data } = await api.patch('/api/users/me', payload);
     return data; // { user }
@@ -129,6 +133,7 @@ export type UpdateMeProPayload = {
     const { data } = await api.get('/api/bookings/to-me');
     return data as { bookings: any[] };
   }
+  
   export async function updateBooking(id: number | string, action: 'confirm' | 'decline' | 'cancel' | 'done') {
     const { data } = await api.patch(`/api/bookings/${id}`, { action });
     return data as { booking: any };
@@ -179,8 +184,48 @@ export type UpdateMeProPayload = {
     return data as { id:number };
   }
   
-  export async function createBookingByDate(videographerId: number|string, isoDate: string, note?: string) {
-    const { data } = await api.post("/api/bookings", { videographerId, date: isoDate, note });
-    return data as { booking: { id:number; status:string; date:string } };
+  export async function createBookingByDate(
+    videographerId: number|string,
+    startISO: string,
+    endISO: string,
+    note?: string
+  ) {
+    const { data } = await api.post("/api/bookings", {
+      videographerId,
+      start: startISO,
+      end: endISO,
+      note
+    });
+    return data as { booking: { id:number; status:string; date:string; durationMinutes: number } };
   }
   
+  
+  export async function createBookingInterval(
+    videographerId: number | string,
+    startISO: string,
+    endISO: string,
+    note?: string
+  ) {
+    const { data } = await api.post('/api/bookings', {
+      videographerId,
+      start: startISO,
+      end: endISO,
+      note
+    });
+    return data as { booking: any };
+  }
+  
+
+  export type ProviderMapItem = {
+    id: number;
+    username: string;
+    location: string;
+    lat: number;
+    lng: number;
+    specializations: string[];
+  };
+  
+  export async function getProvidersMap() {
+    const { data } = await api.get("/api/providers/map");
+    return data as { providers: ProviderMapItem[] };
+  }
