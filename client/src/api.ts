@@ -82,20 +82,95 @@ export async function unfollowUser(userId: number | string) { const { data } = a
    FEED
    ========================= */
 export async function getFeed(params?: { cursor?: number | string; limit?: number }) {
-    const { cursor, limit = 10 } = params || {};
-    const { data } = await api.get("/api/feed", { params: { cursor, limit } });
-    return data as {
-      posts: Array<{
-        id: number | string;
-        imageUrl: string;
-        caption: string;
-        location: string;
+  const { cursor, limit = 10 } = params || {};
+  const { data } = await api.get("/api/feed", { params: { cursor, limit } });
+
+  return data as {
+    posts: Array<{
+      id: number | string;
+      imageUrl: string;
+      caption: string;
+      location: string;
+      createdAt: string;
+      author: { id: number | string; username: string; avatarUrl?: string };
+
+      likeCount: number;
+      commentCount: number;
+      likedByMe: boolean;
+      lastComments: Array<{
+        id: number;
+        text: string;
         createdAt: string;
         author: { id: number | string; username: string; avatarUrl?: string };
       }>;
-      nextCursor: number | null;
+    }>;
+    nextCursor: number | null;
+  };
+}
+
+
+  /* =========================
+   LIKES + COMMENTS
+   ========================= */
+
+export async function toggleLike(postId: number | string) {
+  const { data } = await api.post(`/api/posts/${postId}/like`);
+  return data as { liked: boolean; count: number };
+}
+
+export async function listComments(postId: number | string) {
+  const { data } = await api.get(`/api/posts/${postId}/comments`);
+  return data as {
+    comments: Array<{
+      id: number;
+      text: string;
+      createdAt: string;
+      author: { id: number | string; username: string; avatarUrl?: string };
+    }>;
+  };
+}
+
+export async function addComment(postId: number | string, text: string) {
+  const { data } = await api.post(`/api/posts/${postId}/comments`, { text });
+  return data as {
+    comment: {
+      id: number;
+      text: string;
+      createdAt: string;
+      author: { id: number | string; username: string; avatarUrl?: string };
     };
-  }
+    count: number;
+  };
+}
+
+export async function deleteComment(commentId: number | string) {
+  const { data } = await api.delete(`/api/comments/${commentId}`);
+  return data as { ok: true; count: number; postId: number };
+}
+
+export async function createReview(payload: { bookingId: number | string; rating: number; text?: string }) {
+  const { data } = await api.post("/api/reviews", payload);
+  return data as { review: { id: number; bookingId: number; rating: number; text: string; createdAt: string } };
+}
+
+export async function getProviderReviews(username: string) {
+  const { data } = await api.get(`/api/providers/${encodeURIComponent(username)}/reviews`);
+  return data as {
+    reviews: Array<{
+      id: number;
+      rating: number;
+      text: string;
+      createdAt: string;
+      client: { id: number | string; username: string; avatarUrl?: string };
+    }>;
+    avgRating: number;
+    count: number;
+  };
+}
+
+
+
+
 
   
 
@@ -229,3 +304,62 @@ export async function getFeed(params?: { cursor?: number | string; limit?: numbe
     const { data } = await api.get("/api/providers/map");
     return data as { providers: ProviderMapItem[] };
   }
+
+
+
+
+  // =========================
+// ADMIN
+// =========================
+export type Announcement = {
+  id: number;
+  title: string;
+  body: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  createdBy?: { id: number | string; username?: string | null };
+};
+export async function getAnnouncements() {
+  const { data } = await api.get("/api/announcements");
+  return data; // { announcements: [...] }
+}
+
+export async function adminListAnnouncements() {
+  const { data } = await api.get("/api/admin/announcements");
+  return data as { announcements: Announcement[] };
+}
+
+export async function adminCreateAnnouncement(payload: { title: string; body?: string; isActive?: boolean }) {
+  const { data } = await api.post("/api/admin/announcements", payload);
+  return data as { announcement: Announcement };
+}
+
+export async function adminUpdateAnnouncement(id: number, payload: { title?: string; body?: string; isActive?: boolean }) {
+  const { data } = await api.patch(`/api/admin/announcements/${id}`, payload);
+  return data as { announcement: Announcement };
+}
+
+export async function adminDeleteAnnouncement(id: number) {
+  const { data } = await api.delete(`/api/admin/announcements/${id}`);
+  return data as { ok: true };
+}
+
+export type AdminLogItem = {
+  id: number;
+  action: string;
+  entity?: string | null;
+  entityId?: number | null;
+  meta?: any;
+  createdAt: string;
+  admin: { id: number | string; username?: string | null; email?: string };
+};
+
+export async function adminGetLogs() {
+  const { data } = await api.get("/api/admin/logs");
+  return data as { logs: AdminLogItem[] };
+}
+
+
+
+

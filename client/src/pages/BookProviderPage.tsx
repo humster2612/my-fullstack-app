@@ -38,9 +38,7 @@ export default function BookProviderPage() {
   const [weekStart, setWeekStart] = useState<Date>(startOfWeek());
 
   // данные календаря
-  const [busy, setBusy] = useState<Busy[] | null>(null);
-  const [bookings, setBookings] = useState<Booking[] | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+
 
   // форма брони
   const [day, setDay] = useState(""); // yyyy-mm-dd
@@ -50,7 +48,10 @@ export default function BookProviderPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // загрузка календаря
+  const [busy, setBusy] = useState<Busy[] | null>(null);
+  const [bookings, setBookings] = useState<Booking[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
   useEffect(() => {
     if (!username) return;
     (async () => {
@@ -111,6 +112,7 @@ export default function BookProviderPage() {
   }, [busy, bookings]);
 
   // клик по пустой ячейке — автозаполнить форму (start + duration 60)
+
   function pickSlot(d: Date, hour: number) {
     const dt = new Date(d);
     dt.setHours(hour, 0, 0, 0);
@@ -122,7 +124,7 @@ export default function BookProviderPage() {
 
     setDay(`${y}-${m}-${da}`);
     setFrom(`${hh}:00`);
-    setDuration(60); // по умолчанию 1 час
+    setDuration(60); 
   }
 
   async function submit(e: React.FormEvent) {
@@ -131,7 +133,7 @@ export default function BookProviderPage() {
     setErr(null);
 
     if (!username || !day || !from || !duration) {
-      setErr("Заполните все поля");
+      setErr(" Proszę wypełnić wszystkie pola");
       return;
     }
 
@@ -139,7 +141,7 @@ export default function BookProviderPage() {
     const end = new Date(start.getTime() + duration * 60000);
 
     if (!(start < end)) {
-      setErr("Некорректный интервал");
+      setErr("Nieprawidłowy interwał");
       return;
     }
 
@@ -147,7 +149,7 @@ export default function BookProviderPage() {
       setSubmitting(true);
       const { id } = await getProviderIdByUsername(username);
       await createBookingByDate(id, start.toISOString(), end.toISOString(), note);
-      setMsg("Запрос отправлен!");
+      setMsg("  Wyslano!");
       setNote("");
     } catch (e: any) {
       setErr(e?.response?.data?.error || "Booking failed");

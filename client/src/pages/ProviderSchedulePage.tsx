@@ -408,14 +408,13 @@ export default function ProviderSchedulePage() {
         }}
       >
         <h2>Requests to me</h2>
-
         {errReq && <div style={{ color: "crimson" }}>{errReq}</div>}
         {loadingReq && <div>Loading…</div>}
 
         {!loadingReq && requests.length === 0 && (
           <div style={{ opacity: 0.7 }}>No booking requests yet.</div>
         )}
-
+        
         {requests.map((b) => (
           <div
             key={b.id}

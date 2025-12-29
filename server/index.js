@@ -77,6 +77,160 @@ function auth(req, res, next) {
   }
 }
 
+
+async function adminOnly(req, res, next) {
+  try {
+    const me = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { role: true }
+    });
+    if (!me || me.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Admin only' });
+    }
+    next();
+  } catch (e) {
+    console.error('adminOnly', e);
+    return res.status(500).json({ error: 'server error' });
+  }
+}
+
+app.get('/api/announcements', async (req, res) => {
+  try {
+    const items = await prisma.announcement.findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      select: {
+        id: true, title: true, body: true, isActive: true, createdAt: true,
+        createdBy: { select: { id: true, username: true } }
+      }
+    });
+    res.json({ announcements: items });
+  } catch (e) {
+    console.error('GET /api/announcements', e);
+    res.status(500).json({ error: 'Failed to load announcements' });
+  }
+});
+
+// ===== ADMIN: announcements =====
+app.get('/api/admin/announcements', auth, adminOnly, async (req, res) => {
+  const items = await prisma.announcement.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+    select: {
+      id: true, title: true, body: true, isActive: true, createdAt: true, updatedAt: true,
+      createdBy: { select: { id: true, username: true } }
+    }
+  });
+  res.json({ announcements: items });
+});
+
+app.post('/api/admin/announcements', auth, adminOnly, async (req, res) => {
+  try {
+    const { title, body, isActive = true } = req.body;
+    if (!title || !String(title).trim()) return res.status(400).json({ error: 'title required' });
+
+    const created = await prisma.announcement.create({
+      data: {
+        title: String(title).trim(),
+        body: String(body || '').trim(),
+        isActive: !!isActive,
+        createdById: req.userId
+      },
+      select: { id: true, title: true, body: true, isActive: true, createdAt: true }
+    });
+
+    await prisma.adminLog.create({
+      data: {
+        adminId: req.userId,
+        action: 'ANNOUNCEMENT_CREATE',
+        entity: 'Announcement',
+        entityId: created.id,
+        meta: { title: created.title }
+      }
+    });
+
+    res.status(201).json({ announcement: created });
+  } catch (e) {
+    console.error('POST /api/admin/announcements', e);
+    res.status(500).json({ error: 'Create failed' });
+  }
+});
+
+app.patch('/api/admin/announcements/:id', auth, adminOnly, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { title, body, isActive } = req.body;
+
+    const updated = await prisma.announcement.update({
+      where: { id },
+      data: {
+        ...(title !== undefined ? { title: String(title).trim() } : {}),
+        ...(body !== undefined ? { body: String(body).trim() } : {}),
+        ...(isActive !== undefined ? { isActive: !!isActive } : {}),
+      },
+      select: { id: true, title: true, body: true, isActive: true, updatedAt: true }
+    });
+
+    await prisma.adminLog.create({
+      data: {
+        adminId: req.userId,
+        action: 'ANNOUNCEMENT_UPDATE',
+        entity: 'Announcement',
+        entityId: id,
+        meta: { title: updated.title }
+      }
+    });
+
+    res.json({ announcement: updated });
+  } catch (e) {
+    console.error('PATCH /api/admin/announcements/:id', e);
+    res.status(500).json({ error: 'Update failed' });
+  }
+});
+
+app.delete('/api/admin/announcements/:id', auth, adminOnly, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    await prisma.announcement.delete({ where: { id } });
+
+    await prisma.adminLog.create({
+      data: {
+        adminId: req.userId,
+        action: 'ANNOUNCEMENT_DELETE',
+        entity: 'Announcement',
+        entityId: id
+      }
+    });
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('DELETE /api/admin/announcements/:id', e);
+    res.status(500).json({ error: 'Delete failed' });
+  }
+});
+
+app.get('/api/admin/logs', auth, adminOnly, async (req, res) => {
+  const items = await prisma.adminLog.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+    select: {
+      id: true, action: true, entity: true, entityId: true, meta: true, createdAt: true,
+      admin: { select: { id: true, username: true, email: true } }
+    }
+  });
+  res.json({ logs: items });
+});
+
+
+
+
+
+
+
+
+
 /* ------------------- AUTH ---------------------- */
 app.post('/api/auth/register', async (req, res) => {
   try {
@@ -89,6 +243,8 @@ app.post('/api/auth/register', async (req, res) => {
     const safeName = (username && username.trim()) || email.split('@')[0] + Math.floor(Math.random() * 10000)
     const existU = await prisma.user.findUnique({ where: { username: safeName } })
     if (existU) return res.status(409).json({ error: 'Такой username уже существует' })
+
+  //  шифровка данных пользователя (bycryp)
 
     const hash = await bcrypt.hash(password, 10)
     const user = await prisma.user.create({
@@ -110,7 +266,11 @@ app.post('/api/auth/login', async (req, res) => {
     const ok = await bcrypt.compare(password, user.password)
     if (!ok) return res.status(401).json({ error: 'Неверные данные' })
     const token = jwt.sign({ sub: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' })
-    res.json({ token, user: { id: user.id, email: user.email, username: user.username } })
+    res.json({ 
+      token, 
+      user: { id: user.id, email: user.email, username: user.username, role: user.role } 
+    })
+    
   } catch (e) {
     console.error(e)
     res.status(500).json({ error: 'server error' })
@@ -461,6 +621,122 @@ app.get('/api/users/:username/posts', async (req, res) => {
 
 
 
+// =====================
+// LIKES
+// =====================
+
+// toggle like/unlike
+app.post("/api/posts/:id/like", auth, async (req, res) => {
+  try {
+    const postId = Number(req.params.id);
+    if (!postId || Number.isNaN(postId)) return res.status(400).json({ error: "Invalid post id" });
+
+    const post = await prisma.post.findUnique({ where: { id: postId }, select: { id: true } });
+    if (!post) return res.status(404).json({ error: "Post not found" });
+
+    const existing = await prisma.like.findUnique({
+      where: { userId_postId: { userId: req.userId, postId } }
+    });
+
+    if (existing) {
+      await prisma.like.delete({ where: { id: existing.id } });
+      const count = await prisma.like.count({ where: { postId } });
+      return res.json({ liked: false, count });
+    } else {
+      await prisma.like.create({ data: { userId: req.userId, postId } });
+      const count = await prisma.like.count({ where: { postId } });
+      return res.json({ liked: true, count });
+    }
+  } catch (e) {
+    console.error("POST /api/posts/:id/like", e);
+    res.status(500).json({ error: "Like failed" });
+  }
+});
+
+
+// =====================
+// COMMENTS
+// =====================
+
+// list comments for post
+app.get("/api/posts/:id/comments", async (req, res) => {
+  try {
+    const postId = Number(req.params.id);
+    if (!postId || Number.isNaN(postId)) return res.status(400).json({ error: "Invalid post id" });
+
+    const comments = await prisma.comment.findMany({
+      where: { postId },
+      orderBy: { createdAt: "asc" },
+      take: 50,
+      select: {
+        id: true,
+        text: true,
+        createdAt: true,
+        author: { select: { id: true, username: true, avatarUrl: true } }
+      }
+    });
+
+    res.json({ comments });
+  } catch (e) {
+    console.error("GET /api/posts/:id/comments", e);
+    res.status(500).json({ error: "Failed to load comments" });
+  }
+});
+
+
+
+// add comment
+app.post("/api/posts/:id/comments", auth, async (req, res) => {
+  try {
+    const postId = Number(req.params.id);
+    const { text } = req.body;
+
+    if (!postId || Number.isNaN(postId)) return res.status(400).json({ error: "Invalid post id" });
+    if (!text || !String(text).trim()) return res.status(400).json({ error: "Text required" });
+
+    const post = await prisma.post.findUnique({ where: { id: postId }, select: { id: true } });
+    if (!post) return res.status(404).json({ error: "Post not found" });
+
+    const c = await prisma.comment.create({
+      data: { postId, authorId: req.userId, text: String(text).trim() },
+      select: {
+        id: true,
+        text: true,
+        createdAt: true,
+        author: { select: { id: true, username: true, avatarUrl: true } }
+      }
+    });
+
+    const count = await prisma.comment.count({ where: { postId } });
+    res.status(201).json({ comment: c, count });
+  } catch (e) {
+    console.error("POST /api/posts/:id/comments", e);
+    res.status(500).json({ error: "Create comment failed" });
+  }
+});
+
+
+app.delete("/api/comments/:id", auth, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id || Number.isNaN(id)) return res.status(400).json({ error: "Invalid comment id" });
+
+    const c = await prisma.comment.findUnique({ where: { id }, select: { id: true, authorId: true, postId: true } });
+    if (!c) return res.status(404).json({ error: "Not found" });
+    if (c.authorId !== req.userId) return res.status(403).json({ error: "Forbidden" });
+
+    await prisma.comment.delete({ where: { id } });
+    const count = await prisma.comment.count({ where: { postId: c.postId } });
+    res.json({ ok: true, count, postId: c.postId });
+  } catch (e) {
+    console.error("DELETE /api/comments/:id", e);
+    res.status(500).json({ error: "Delete failed" });
+  }
+});
+
+
+
+
 
 // ===== BOOKINGS =====
 
@@ -471,35 +747,24 @@ app.post('/api/bookings', auth, async (req, res) => {
       if (!videographerId) {
         return res.status(400).json({ error: 'videographerId обязателен' });
       }
-  
-      // Нельзя бронировать себя
       if (Number(videographerId) === Number(req.userId)) {
-        return res.status(400).json({ error: 'Нельзя бронировать себя' });
+        return res.status(400).json({ error: 'Nie możesz zarezerwować siebie' });
       }
-  
-      // Провайдер ли это?
       const provider = await prisma.user.findUnique({
         where: { id: Number(videographerId) },
         select: { id: true, role: true }
       });
       if (!provider || (provider.role !== 'VIDEOGRAPHER' && provider.role !== 'PHOTOGRAPHER')) {
-        return res.status(400).json({ error: 'Пользователь не принимает брони' });
+        return res.status(400).json({ error: 'Użytkownik nie przyjmuje rezerwacji' });
       }
-  
-      // ----- Время брони -----
-      // Обратная совместимость: если пришло legacy "date" (одна точка) — считаем 60 минут.
+      // ----- CZAS -----
       const from = start ? new Date(start) : (date ? new Date(date) : null);
       const to   = end   ? new Date(end)   : (from ? new Date(from.getTime() + 60*60*1000) : null);
   
-      if (!from || !to) return res.status(400).json({ error: 'Укажи start/end или date' });
-      if (!(from < to))  return res.status(400).json({ error: 'Некорректный интервал' });
-      if (from < new Date()) return res.status(400).json({ error: 'Нельзя бронировать в прошлом' });
-  
+      if (!from || !to) return res.status(400).json({ error: 'podaj start/end lub date' });
+      if (!(from < to))  return res.status(400).json({ error: 'Nieprawidłowy interwałv' });
+      if (from < new Date()) return res.status(400).json({ error: 'Nie można dokonać rezerwacji w przeszłości ' });
       const durationMinutes = Math.max(1, Math.round((to.getTime() - from.getTime())/60000));
-  
-      // ----- Проверка конфликтов -----
-  
-      // 1) конфликт с занятостью (busy/unavailability)
       const busy = await prisma.unavailability.findFirst({
         where: {
           providerId: Number(videographerId),
@@ -508,11 +773,9 @@ app.post('/api/bookings', auth, async (req, res) => {
         },
         select: { id: true }
       });
-      if (busy) return res.status(400).json({ error: 'Этот интервал занят провайдером' });
+      if (busy) return res.status(400).json({ error: ' Ten przedział jest zajęty przez uslugodawce' });
   
-      // 2) конфликт с другими активными бронированиями
-      // Сначала берём брони в окне (чтоб не делать сложные вычисления в БД)
-      const windowStart = new Date(from.getTime() - 8*60*60*1000); // запас 8 часов назад
+      const windowStart = new Date(from.getTime() - 8*60*60*1000); 
       const conflicts = await prisma.booking.findMany({
         where: {
           videographerId: Number(videographerId),
@@ -527,9 +790,8 @@ app.post('/api/bookings', auth, async (req, res) => {
         const bEnd   = new Date(bStart.getTime() + (b.durationMinutes ?? 60) * 60000);
         return (bStart < to && bEnd > from);
       });
-      if (overlap) return res.status(400).json({ error: 'Это время уже забронировано' });
+      if (overlap) return res.status(400).json({ error: ' Ten termin jest już zarezerwowany ' });
   
-      // ----- Создание брони -----
       const booking = await prisma.booking.create({
         data: {
           clientId: req.userId,
@@ -545,7 +807,7 @@ app.post('/api/bookings', auth, async (req, res) => {
       res.status(201).json({ booking });
     } catch (e) {
       console.error('POST /api/bookings', e);
-      res.status(500).json({ error: 'create booking failed' });
+      res.status(500).json({ error: ' utworzenie rezerwacji nie poszlo ' });
     }
   });  
   
@@ -557,22 +819,23 @@ app.post('/api/bookings', auth, async (req, res) => {
       orderBy: { date: 'desc' },
       select: {
         id: true, date: true, status: true, note: true,
-        durationMinutes: true,                // 👈 добавили
-        videographer: { select: { id: true, username: true, avatarUrl: true, role: true } }
-      }
+        durationMinutes: true,
+        videographer: { select: { id: true, username: true, avatarUrl: true, role: true } },
+        review: { select: { id: true, rating: true } } // 👈 добавили
+      }      
     });
     res.json({ bookings: list });
   });
   
   
-  // Список запросов ко мне как к провайдеру
+
   app.get('/api/bookings/to-me', auth, async (req, res) => {
     const list = await prisma.booking.findMany({
       where: { videographerId: req.userId },
       orderBy: { date: 'asc' },
       select: {
         id: true, date: true, status: true, note: true,
-        durationMinutes: true,                // 👈 добавили
+        durationMinutes: true,                
         client: { select: { id: true, username: true, avatarUrl: true } }
       }      
     });
@@ -591,13 +854,12 @@ app.patch("/api/bookings/:id", async (req, res) => {
         return res.status(400).json({ error: "Invalid action" });
       }
   
-      // Находим бронь
+     
       const booking = await prisma.booking.findUnique({ where: { id } });
+
       if (!booking) {
         return res.status(404).json({ error: "Booking not found" });
       }
-  
-      // тут можно добавить проверку, что текущий пользователь = провайдер брони
   
       let newStatus = booking.status;
       if (action === "confirm") newStatus = "confirmed";
@@ -609,13 +871,123 @@ app.patch("/api/bookings/:id", async (req, res) => {
         data: { status: newStatus },
       });
   
-      // ВАЖНО: НИКАКИХ redirect!
       return res.json({ booking: updated });
     } catch (e) {
       console.error(e);
       return res.status(500).json({ error: "Server error" });
     }
   });
+
+  app.post("/api/reviews", auth, async (req, res) => {
+    try {
+      const { bookingId, rating, text } = req.body;
+      const r = Number(rating);
+  
+      if (!bookingId) return res.status(400).json({ error: "bookingId required" });
+      if (!Number.isFinite(r) || r < 1 || r > 5) return res.status(400).json({ error: "rating must be 1..5" });
+  
+      const booking = await prisma.booking.findUnique({
+        where: { id: Number(bookingId) },
+        select: { id: true, clientId: true, videographerId: true, status: true }
+      });
+      if (!booking) return res.status(404).json({ error: "Booking not found" });
+      if (booking.clientId !== req.userId) return res.status(403).json({ error: "Not your booking" });
+      if (booking.status !== "done") return res.status(400).json({ error: "Booking is not done yet" });
+  
+      // запрет повторного отзыва
+      const exists = await prisma.review.findUnique({ where: { bookingId: booking.id } });
+      if (exists) return res.status(409).json({ error: "Review already exists" });
+  
+      const review = await prisma.review.create({
+        data: {
+          bookingId: booking.id,
+          providerId: booking.videographerId,
+          clientId: booking.clientId,
+          rating: r,
+          text: typeof text === "string" ? text : ""
+        },
+        select: {
+          id: true, rating: true, text: true, createdAt: true,
+          client: { select: { id: true, username: true, avatarUrl: true } }
+        }
+      });
+  
+      res.status(201).json({ review });
+    } catch (e) {
+      console.error("POST /api/reviews", e);
+      res.status(500).json({ error: "Create review failed" });
+    }
+  });
+  
+
+
+  app.get("/api/providers/:username/reviews", async (req, res) => {
+    try {
+      const u = await prisma.user.findUnique({
+        where: { username: req.params.username },
+        select: { id: true, username: true }
+      });
+      if (!u) return res.status(404).json({ error: "User not found" });
+  
+      const reviews = await prisma.review.findMany({
+        where: { providerId: u.id },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        select: {
+          id: true,
+          rating: true,
+          text: true,
+          createdAt: true,
+          client: { select: { id: true, username: true, avatarUrl: true } },
+          bookingId: true,
+        }
+      });
+  
+      const agg = await prisma.review.aggregate({
+        where: { providerId: u.id },
+        _avg: { rating: true },
+        _count: { rating: true }
+      });
+  
+      res.json({
+        avgRating: agg._avg.rating || 0,
+        count: agg._count.rating || 0,
+        reviews
+      });
+    } catch (e) {
+      console.error("GET reviews", e);
+      res.status(500).json({ error: "Failed to load reviews" });
+    }
+  });
+  
+  app.get("/api/reviews/pending", auth, async (req, res) => {
+    try {
+      // done bookings where no review exists
+      const list = await prisma.booking.findMany({
+        where: { clientId: req.userId, status: "done" },
+        select: { id: true }
+      });
+  
+      const ids = list.map(b => b.id);
+      if (!ids.length) return res.json({ count: 0 });
+  
+      const reviewed = await prisma.review.findMany({
+        where: { bookingId: { in: ids } },
+        select: { bookingId: true }
+      });
+  
+      const reviewedSet = new Set(reviewed.map(x => x.bookingId));
+      const pending = ids.filter(id => !reviewedSet.has(id)).length;
+  
+      res.json({ count: pending });
+    } catch (e) {
+      console.error("GET /api/reviews/pending", e);
+      res.status(500).json({ error: "Failed" });
+    }
+  });
+  
+  
+
   
   
   // ------ BOOKING по слоту ------
@@ -694,46 +1066,78 @@ app.post('/api/bookings/by-slot', auth, async (req, res) => {
   });
   
 
-/* ------------------- START --------------------- */
-const PORT = process.env.PORT || 4000
-app.listen(PORT, () => console.log(`API listening on ${PORT}`))
 
 
 
 // ===== FEED: мои посты + посты тех, на кого я подписан =====
-app.get('/api/feed', auth, async (req, res) => {
-    try {
-      const limitRaw = parseInt(String(req.query.limit || ''), 10)
-      const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 20) : 10
-      const cursorParam = req.query.cursor
-      const cursorId = cursorParam !== undefined ? Number(cursorParam) : undefined
-  
-      // кого читаем: я + те, на кого подписан
-      const rels = await prisma.follow.findMany({
-        where: { followerId: req.userId },
-        select: { followingId: true }
-      })
-      const authorIds = [req.userId, ...rels.map(r => r.followingId)]
-  
-      const posts = await prisma.post.findMany({
-        where: { authorId: { in: authorIds } },
-        orderBy: { id: 'desc' },                 // пагинация по id
-        take: limit,
-        ...(cursorId ? { skip: 1, cursor: { id: cursorId } } : {}),
-        select: {
-          id: true, imageUrl: true, caption: true, location: true, createdAt: true,
-          author: { select: { id: true, username: true, avatarUrl: true } }
-        }
-      })
-  
-      const nextCursor = posts.length === limit ? posts[posts.length - 1].id : null
-      res.json({ posts, nextCursor })
-    } catch (e) {
-      console.error('GET /api/feed error:', e)
-      res.status(500).json({ error: 'server error' })
-    }
-  })
-  
+app.get("/api/feed", auth, async (req, res) => {
+  try {
+    const limitRaw = parseInt(String(req.query.limit || ""), 10);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 20) : 10;
+    const cursorParam = req.query.cursor;
+    const cursorId = cursorParam !== undefined ? Number(cursorParam) : undefined;
+
+    const rels = await prisma.follow.findMany({
+      where: { followerId: req.userId },
+      select: { followingId: true },
+    });
+    const authorIds = [req.userId, ...rels.map((r) => r.followingId)];
+
+    const posts = await prisma.post.findMany({
+      where: { authorId: { in: authorIds } },
+      orderBy: { id: "desc" },
+      take: limit,
+      ...(cursorId ? { skip: 1, cursor: { id: cursorId } } : {}),
+      select: {
+        id: true,
+        imageUrl: true,
+        caption: true,
+        location: true,
+        createdAt: true,
+        author: { select: { id: true, username: true, avatarUrl: true } },
+
+        _count: { select: { likes: true, comments: true } },
+
+        likes: {
+          where: { userId: req.userId },
+          select: { id: true },
+          take: 1,
+        },
+
+        comments: {
+          orderBy: { createdAt: "desc" },
+          take: 2,
+          select: {
+            id: true,
+            text: true,
+            createdAt: true,
+            author: { select: { id: true, username: true, avatarUrl: true } },
+          },
+        },
+      },
+    });
+
+    const shaped = posts.map((p) => ({
+      id: p.id,
+      imageUrl: p.imageUrl,
+      caption: p.caption,
+      location: p.location,
+      createdAt: p.createdAt,
+      author: p.author,
+      likeCount: p._count.likes,
+      commentCount: p._count.comments,
+      likedByMe: p.likes.length > 0,
+      lastComments: [...p.comments].reverse(), // чтобы показывать по времени (старые→новые)
+    }));
+
+    const nextCursor = posts.length === limit ? posts[posts.length - 1].id : null;
+    res.json({ posts: shaped, nextCursor });
+  } catch (e) {
+    console.error("GET /api/feed error:", e);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
 
 
 
@@ -887,3 +1291,7 @@ app.get('/api/providers/:username/calendar', async (req, res) => {
     res.json({ id: u.id });
   });
   
+
+  /* ------------------- START --------------------- */
+const PORT = process.env.PORT || 4000
+app.listen(PORT, () => console.log(`API listening on ${PORT}`))

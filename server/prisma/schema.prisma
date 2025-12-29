@@ -1,67 +1,100 @@
-// prisma/schema.prisma
-
-datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")   // POOLER (Prisma)
-  directUrl = env("DIRECT_URL")     // DIRECT (без pooler) — для миграций
-}
-
 generator client {
   provider = "prisma-client-js"
 }
 
-enum Role {
-  CLIENT
-  VIDEOGRAPHER
-  PHOTOGRAPHER
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  username  String? @unique
-  avatarUrl String  @default("")
-  bio       String  @default("")
-  location  String  @default("")
-  links     Json?
-  followers Int     @default(0)
-  following Int     @default(0)
-
-  role            Role     @default(CLIENT)
-  specialization  String[] @default([])
-  pricePerHour    Int?
-  portfolioVideos String[] @default([])
-
-  latitude   Float?  // широта
-  longitude  Float?  // долгота
-
-  posts         Post[]
-  followingRels Follow[] @relation("UserFollowing")
-  followersRels Follow[] @relation("UserFollowers")
-
+  id               Int              @id @default(autoincrement())
+  email            String           @unique
+  password         String
+  createdAt        DateTime         @default(now())
+  avatarUrl        String           @default("")
+  bio              String           @default("")
+  followers        Int              @default(0)
+  following        Int              @default(0)
+  links            Json?
+  location         String           @default("")
+  updatedAt        DateTime         @updatedAt
+  username         String?          @unique
+  portfolioVideos  String[]         @default([])
+  pricePerHour     Int?
+  role             Role             @default(CLIENT)
+  specialization   String[]         @default([])
+  latitude         Float?
+  longitude        Float?
   availabilities   Availability[]
-  clientBookings   Booking[]      @relation("ClientBookings")
-  providerBookings Booking[]      @relation("ProviderBookings")
+  clientBookings   Booking[]        @relation("ClientBookings")
+  providerBookings Booking[]        @relation("ProviderBookings")
+  followingRels    Follow[]         @relation("UserFollowing")
+  followersRels    Follow[]         @relation("UserFollowers")
+  posts            Post[]
+  unavailability   Unavailability[]
+  likes            Like[]
+  comments         Comment[]
 
-  unavailability      Unavailability[]
+  clientReviews   Review[]       @relation("ClientReviews")
+  providerReviews Review[]       @relation("ProviderReviews")
+  announcements   Announcement[]
+  adminLogs       AdminLog[]
 
+  bannedUntil DateTime?
+
+  warnings      Warning[] @relation("WarningUser")
+  warningsGiven Warning[] @relation("WarningAdmin")
+
+  reportsMade    Report[] @relation("ReportReporter")
+  reportsHandled Report[] @relation("ReportHandledBy")
+  reportsAgainst Report[] @relation("ReportTargetUser")
 }
 
 model Post {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   authorId  Int
   imageUrl  String
-  caption   String   @default("")
-  location  String   @default("")
-  createdAt DateTime @default(now())
-  author    User     @relation(fields: [authorId], references: [id])
+  caption   String    @default("")
+  location  String    @default("")
+  createdAt DateTime  @default(now())
+  author    User      @relation(fields: [authorId], references: [id])
+  likes     Like[]
+  comments  Comment[]
+  Report    Report[]
 
   @@index([authorId])
   @@index([createdAt])
+}
+
+model Like {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  postId    Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  post Post @relation(fields: [postId], references: [id])
+
+  @@unique([userId, postId])
+  @@index([postId])
+  @@index([userId])
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  authorId  Int
+  text      String
+  createdAt DateTime @default(now())
+
+  post   Post     @relation(fields: [postId], references: [id])
+  author User     @relation(fields: [authorId], references: [id])
+  Report Report[]
+
+  @@index([postId, createdAt])
+  @@index([authorId])
 }
 
 model Follow {
@@ -84,26 +117,23 @@ model Availability {
   endsAt     DateTime
   isBooked   Boolean  @default(false)
   createdAt  DateTime @default(now())
-
-  provider User @relation(fields: [providerId], references: [id])
+  provider   User     @relation(fields: [providerId], references: [id])
 
   @@index([providerId, startsAt])
   @@index([isBooked])
 }
 
 model Booking {
-  id             Int      @id @default(autoincrement())
-  clientId       Int
-  videographerId Int
-  date           DateTime
+  id              Int      @id @default(autoincrement())
+  clientId        Int
+  videographerId  Int
+  date            DateTime
+  status          String   @default("pending")
+  note            String?
   durationMinutes Int      @default(60)
-  status         String   @default("pending")
-  note           String?
-
-
-
-  client       User @relation("ClientBookings",   fields: [clientId],       references: [id])
-  videographer User @relation("ProviderBookings", fields: [videographerId], references: [id])
+  client          User     @relation("ClientBookings", fields: [clientId], references: [id])
+  videographer    User     @relation("ProviderBookings", fields: [videographerId], references: [id])
+  review          Review?
 
   @@index([videographerId, date])
   @@index([clientId, date])
@@ -114,11 +144,113 @@ model Unavailability {
   providerId Int
   startsAt   DateTime
   endsAt     DateTime
-  reason     String?  // опционально: “wedding shoot”, “travel”, и т.п.
+  reason     String?
   createdAt  DateTime @default(now())
-
   provider   User     @relation(fields: [providerId], references: [id])
 
   @@index([providerId, startsAt])
   @@index([startsAt, endsAt])
+}
+
+enum Role {
+  CLIENT
+  VIDEOGRAPHER
+  PHOTOGRAPHER
+  ADMIN
+}
+
+model Review {
+  id         Int      @id @default(autoincrement())
+  bookingId  Int      @unique
+  clientId   Int
+  providerId Int
+  rating     Int
+  text       String   @default("")
+  createdAt  DateTime @default(now())
+
+  booking  Booking @relation(fields: [bookingId], references: [id])
+  client   User    @relation("ClientReviews", fields: [clientId], references: [id])
+  provider User    @relation("ProviderReviews", fields: [providerId], references: [id])
+
+  @@index([providerId, createdAt])
+  @@index([clientId, createdAt])
+}
+
+model Announcement {
+  id        Int      @id @default(autoincrement())
+  title     String
+  body      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById Int?
+  createdBy   User? @relation(fields: [createdById], references: [id])
+
+  @@index([isActive])
+  @@index([createdAt])
+}
+
+model AdminLog {
+  id        Int      @id @default(autoincrement())
+  adminId   Int
+  action    String
+  entity    String?
+  entityId  Int?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  admin User @relation(fields: [adminId], references: [id])
+
+  @@index([adminId, createdAt])
+  @@index([entity, entityId])
+}
+
+enum ReportTargetType {
+  POST
+  COMMENT
+  USER
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+}
+
+model Report {
+  id        Int          @id @default(autoincrement())
+  createdAt DateTime     @default(now())
+  status    ReportStatus @default(OPEN)
+
+  reason  String
+  message String?
+
+  targetType   ReportTargetType
+  postId       Int?
+  commentId    Int?
+  targetUserId Int?
+
+  reporterId Int
+  reporter   User @relation("ReportReporter", fields: [reporterId], references: [id])
+
+  handledById Int?
+  handledBy   User? @relation("ReportHandledBy", fields: [handledById], references: [id])
+
+  // (опционально) быстрые связи:
+  post       Post?    @relation(fields: [postId], references: [id])
+  comment    Comment? @relation(fields: [commentId], references: [id])
+  targetUser User?    @relation("ReportTargetUser", fields: [targetUserId], references: [id])
+}
+
+model Warning {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+
+  text String
+
+  userId Int
+  user   User @relation("WarningUser", fields: [userId], references: [id])
+
+  adminId Int
+  admin   User @relation("WarningAdmin", fields: [adminId], references: [id])
 }

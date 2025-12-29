@@ -14,12 +14,11 @@ import PeoplePage from "./pages/PeoplePage";
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import CreatePostPage from "./pages/CreatePostPage";
-// import SchedulePage from "./pages/SchedulePage";
 import BookProviderPage from "./pages/BookProviderPage";
 import ProviderSchedulePage from "./pages/ProviderSchedulePage";
 import BookingRequestsPage from "./pages/BookingRequestsPage";
 import MyBookingsPage from "./pages/MyBookingsPage";
-
+import AdminPage from "./pages/AdminPage";
 
 import { loginUser, registerUser, getMe } from "./api";
 
@@ -27,7 +26,7 @@ type User = {
   id: number | string;
   email: string;
   username?: string;
-  role?: 'CLIENT' | 'VIDEOGRAPHER' | 'PHOTOGRAPHER';
+  role?: "CLIENT" | "VIDEOGRAPHER" | "PHOTOGRAPHER" | "ADMIN";
 };
 
 function App() {
@@ -37,6 +36,7 @@ function App() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
+
     (async () => {
       try {
         const me = await getMe();
@@ -67,14 +67,25 @@ function App() {
         >
           <Link to="/">Home</Link>
           <Link to="/people">People</Link>
+
           {!!user && user.username && (
             <Link to={`/profile/${user.username}`}>My profile</Link>
           )}
           {!!user && <Link to="/settings">Settings</Link>}
           {!!user && <Link to="/create">Create</Link>}
-          {!!user && (user.role === 'VIDEOGRAPHER' || user.role === 'PHOTOGRAPHER') && (
-  <Link to="/schedule">Schedule</Link>
-)}
+          {!!user && <Link to="/my-bookings">My bookings</Link>}
+
+          {!!user && user.role === "ADMIN" && <Link to="/admin">Admin</Link>}
+
+          {!!user &&
+            (user.role === "VIDEOGRAPHER" || user.role === "PHOTOGRAPHER") && (
+              <Link to="/booking-requests">Booking requests</Link>
+            )}
+
+          {!!user &&
+            (user.role === "VIDEOGRAPHER" || user.role === "PHOTOGRAPHER") && (
+              <Link to="/schedule">Schedule</Link>
+            )}
 
           <div style={{ marginLeft: "auto" }} />
           {!!user ? (
@@ -96,6 +107,7 @@ function App() {
           {/* Публичные страницы */}
           <Route path="/people" element={<PeoplePage />} />
           <Route path="/profile/:username" element={<ProfilePage />} />
+          <Route path="/book/:username" element={<BookProviderPage />} />
 
           {/* Страницы только для авторизованных */}
           <Route
@@ -104,27 +116,30 @@ function App() {
           />
           <Route
             path="/create"
+            element={user ? <CreatePostPage /> : <Navigate to="/login" replace />}
+          />
+          <Route
+            path="/schedule"
             element={
-              user ? <CreatePostPage /> : <Navigate to="/login" replace />
+              user ? <ProviderSchedulePage /> : <Navigate to="/login" replace />
             }
           />
-         <Route path="/schedule" element={user ? <ProviderSchedulePage /> : <Navigate to="/login" replace />} />
-         <Route path="/booking-requests" element={<BookingRequestsPage />} />
-<Route path="/my-bookings" element={<MyBookingsPage />} />
-
-
-<Route path="/book/:username" element={<BookProviderPage/>} />
-
+          <Route
+            path="/booking-requests"
+            element={
+              user ? <BookingRequestsPage /> : <Navigate to="/login" replace />
+            }
+          />
+          <Route
+            path="/my-bookings"
+            element={user ? <MyBookingsPage /> : <Navigate to="/login" replace />}
+          />
 
           {/* Auth */}
           <Route
             path="/login"
             element={
-              user ? (
-                <Navigate to="/" replace />
-              ) : (
-                <Login onLoggedIn={setUser} />
-              )
+              user ? <Navigate to="/" replace /> : <Login onLoggedIn={setUser} />
             }
           />
           <Route
@@ -138,19 +153,27 @@ function App() {
             }
           />
 
+          {/* Admin */}
+          <Route
+            path="/admin"
+            element={
+              user?.role === "ADMIN" ? (
+                <AdminPage />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
           {/* fallback */}
-          {/* <Route path="*" element={<Navigate to="/" replace />} /> */}
           <Route path="*" element={<div>Page not found</div>} />
-
-
-
         </Routes>
       </div>
     </BrowserRouter>
   );
 }
 
-/* ====== Auth forms (как раньше) ====== */
+/* ====== Auth forms ====== */
 function Login({ onLoggedIn }: { onLoggedIn: (u: User | null) => void }) {
   const nav = useNavigate();
   const [email, setEmail] = useState<string>("");
@@ -170,10 +193,18 @@ function Login({ onLoggedIn }: { onLoggedIn: (u: User | null) => void }) {
     try {
       const res = await loginUser({ email, password });
       if (res?.token) localStorage.setItem("token", res.token);
-      onLoggedIn(res?.user ?? null);
+
+      // ✅ ВСЕГДА берем актуального пользователя с ролью из /api/users/me
+      const me = await getMe();
+      onLoggedIn(me.user ?? null);
+
       nav("/");
     } catch (e: any) {
-      setErr(e?.response?.data?.message || "Неверные данные для входа");
+      setErr(
+        e?.response?.data?.error ||
+          e?.response?.data?.message ||
+          "Неверные данные для входа"
+      );
     } finally {
       setLoading(false);
     }
@@ -242,10 +273,18 @@ function Register({
       await registerUser({ email, password, username });
       const logged = await loginUser({ email, password });
       if (logged?.token) localStorage.setItem("token", logged.token);
-      onRegistered(logged?.user ?? null);
+
+      // ✅ ВСЕГДА берем актуального пользователя с ролью из /api/users/me
+      const me = await getMe();
+      onRegistered(me.user ?? null);
+
       nav("/");
     } catch (e: any) {
-      setErr(e?.response?.data?.message || "Ошибка регистрации");
+      setErr(
+        e?.response?.data?.error ||
+          e?.response?.data?.message ||
+          "Ошибка регистрации"
+      );
     } finally {
       setLoading(false);
     }

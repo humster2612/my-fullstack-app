@@ -4,6 +4,7 @@ import { useParams, Link } from "react-router-dom";
 import Avatar from "../Avatar";
 import {getUserByUsername,getMe,getFollowStatus,followUser,unfollowUser, getUserPosts,createBooking,} from "../api";
 
+
 type PublicUser = {
     id: number | string;
     username: string;
