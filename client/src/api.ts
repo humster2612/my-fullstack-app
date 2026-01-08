@@ -35,52 +35,45 @@ export async function uploadAvatar(file: File) {
 
 /* PEOPLE */
 export async function listUsers(params?: { q?: string; limit?: number; cursor?: number | string }) {
-    const { q = "", limit = 20, cursor } = params || {};
-    const { data } = await api.get("/api/users", { params: { q, limit, cursor } });
-    return data as {
-      users: Array<{
-        id: number | string;
-        username: string;
-        email: string;
-        avatarUrl?: string;
-        followers: number; // счётчик подписчиков
-        following: number; // счётчик "на кого подписан"
-        isFollowing?: boolean; // <- булевый флаг, переименован
-      }>;
-      nextCursor: number | null;
-    };
-  }
-  
+  const { q = "", limit = 20, cursor } = params || {};
+  const { data } = await api.get("/api/users", { params: { q, limit, cursor } });
+  return data as {
+    users: Array<{
+      id: number | string;
+      username: string;
+      email: string;
+      avatarUrl?: string;
+      followers: number;
+      following: number;
+      isFollowing?: boolean;
+    }>;
+    nextCursor: number | null;
+  };
+}
 
 /* FOLLOW */
 export async function getFollowStatus(userId: number | string) { const { data } = await api.get(`/api/follow/status/${userId}`); return data as { following: boolean }; }
 export async function followUser(userId: number | string) { const { data } = await api.post(`/api/follow/${userId}`); return data as { ok: true }; }
 export async function unfollowUser(userId: number | string) { const { data } = await api.delete(`/api/follow/${userId}`); return data as { ok: true }; }
 
-/* =========================
-   POSTS
-   ========================= */
+/* POSTS */
+export async function createPost(file: File, payload: { caption?: string; location?: string }) {
+  const fd = new FormData();
+  fd.append("file", file);
+  if (payload.caption) fd.append("caption", payload.caption);
+  if (payload.location) fd.append("location", payload.location);
+  const { data } = await api.post("/api/posts", fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data as { post: { id: number|string; imageUrl: string; caption: string; location: string; createdAt: string } };
+}
 
-   export async function createPost(file: File, payload: { caption?: string; location?: string }) {
-    const fd = new FormData();
-    fd.append("file", file);
-    if (payload.caption) fd.append("caption", payload.caption);
-    if (payload.location) fd.append("location", payload.location);
-    const { data } = await api.post("/api/posts", fd, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    return data as { post: { id: number|string; imageUrl: string; caption: string; location: string; createdAt: string } };
-  }
-  
-  export async function getUserPosts(username: string) {
-    const { data } = await api.get(`/api/users/${username}/posts`);
-    return data as { posts: Array<{ id:number|string; imageUrl:string; caption:string; location:string; createdAt:string }> };
-  }
-  
+export async function getUserPosts(username: string) {
+  const { data } = await api.get(`/api/users/${username}/posts`);
+  return data as { posts: Array<{ id:number|string; imageUrl:string; caption:string; location:string; createdAt:string }> };
+}
 
-  /* =========================
-   FEED
-   ========================= */
+/* FEED */
 export async function getFeed(params?: { cursor?: number | string; limit?: number }) {
   const { cursor, limit = 10 } = params || {};
   const { data } = await api.get("/api/feed", { params: { cursor, limit } });
@@ -108,11 +101,7 @@ export async function getFeed(params?: { cursor?: number | string; limit?: numbe
   };
 }
 
-
-  /* =========================
-   LIKES + COMMENTS
-   ========================= */
-
+/* LIKES + COMMENTS */
 export async function toggleLike(postId: number | string) {
   const { data } = await api.post(`/api/posts/${postId}/like`);
   return data as { liked: boolean; count: number };
@@ -148,6 +137,7 @@ export async function deleteComment(commentId: number | string) {
   return data as { ok: true; count: number; postId: number };
 }
 
+/* REVIEWS */
 export async function createReview(payload: { bookingId: number | string; rating: number; text?: string }) {
   const { data } = await api.post("/api/reviews", payload);
   return data as { review: { id: number; bookingId: number; rating: number; text: string; createdAt: string } };
@@ -168,149 +158,113 @@ export async function getProviderReviews(username: string) {
   };
 }
 
+/* Profile extensions */
+export type UpdateMeProPayload = {
+  role?: 'CLIENT' | 'VIDEOGRAPHER' | 'PHOTOGRAPHER';
+  specialization?: string[];
+  pricePerHour?: number | null;
+  location?: string;
+  portfolioVideos?: string[];
+  links?: string[];
+  avatarUrl?: string;
+  bio?: string;
+  username?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+};
 
+export async function updateMePro(payload: UpdateMeProPayload) {
+  const { data } = await api.patch('/api/users/me', payload);
+  return data;
+}
 
+/* Bookings */
+export async function createBooking(videographerId: number | string, dateISO: string, note?: string) {
+  const { data } = await api.post('/api/bookings', { videographerId, date: dateISO, note });
+  return data as { booking: any };
+}
+export async function myBookings() {
+  const { data } = await api.get('/api/bookings/my');
+  return data as { bookings: any[] };
+}
+export async function toMeBookings() {
+  const { data } = await api.get('/api/bookings/to-me');
+  return data as { bookings: any[] };
+}
 
+export async function updateBooking(id: number | string, action: 'confirm' | 'decline' | 'cancel' | 'done') {
+  const { data } = await api.patch(`/api/bookings/${id}`, { action });
+  return data as { booking: any };
+}
 
-  
-
-  // ===== Profile extensions =====
-  export type UpdateMeProPayload = {
-    role?: 'CLIENT' | 'VIDEOGRAPHER' | 'PHOTOGRAPHER';
-    specialization?: string[];
-    pricePerHour?: number | null;
-    location?: string;
-    portfolioVideos?: string[];
-    links?: string[];
-    avatarUrl?: string;
-    bio?: string;
-    username?: string;
-  
-    latitude?: number | null;
-    longitude?: number | null;
+export async function getProviderUnavailability(username: string) {
+  const { data } = await api.get(`/api/providers/${encodeURIComponent(username)}/calendar`);
+  return data as {
+    busy: { id:number; startsAt:string; endsAt:string }[];
+    bookings: { id:number; date:string; status:string }[];
   };
-  
-  export async function updateMePro(payload: UpdateMeProPayload) {
-    const { data } = await api.patch('/api/users/me', payload);
-    return data; // { user }
-  }
-  
-  // ===== Bookings =====
-  export async function createBooking(videographerId: number | string, dateISO: string, note?: string) {
-    const { data } = await api.post('/api/bookings', { videographerId, date: dateISO, note });
-    return data as { booking: any };
-  }
-  export async function myBookings() {
-    const { data } = await api.get('/api/bookings/my');
-    return data as { bookings: any[] };
-  }
-  export async function toMeBookings() {
-    const { data } = await api.get('/api/bookings/to-me');
-    return data as { bookings: any[] };
-  }
-  
-  export async function updateBooking(id: number | string, action: 'confirm' | 'decline' | 'cancel' | 'done') {
-    const { data } = await api.patch(`/api/bookings/${id}`, { action });
-    return data as { booking: any };
-  }
-  
+}
 
+export async function createUnavailability(startsAt: string, endsAt: string) {
+  const { data } = await api.post("/api/unavailability", { startsAt, endsAt });
+  return data as { item: { id:number; startsAt:string; endsAt:string } };
+}
 
-  // --- Provider availability ---
-// export async function getProviderAvailability(username: string) {
-//     const { data } = await api.get(`/api/providers/${encodeURIComponent(username)}/availability`);
-//     return data as { slots: { id:number; startsAt:string; endsAt:string; isBooked:boolean }[] };
-//   }
-  
-//   export async function createAvailability(startsAt: string, endsAt: string) {
-//     const { data } = await api.post('/api/availability', { startsAt, endsAt });
-//     return data as { slot: { id:number; startsAt:string; endsAt:string; isBooked:boolean } };
-//   }
-  
-//   export async function deleteAvailability(id: number) {
-//     const { data } = await api.delete(`/api/availability/${id}`);
-//     return data as { ok: true };
-//   }
-  
-//   export async function bookBySlot(slotId: number, note: string = "") {
-//     const { data } = await api.post('/api/bookings/by-slot', { slotId, note });
-//     return data as { booking: { id:number; status:string; date:string } };
-//   }
-  export async function getProviderUnavailability(username: string) {
-    const { data } = await api.get(`/api/providers/${encodeURIComponent(username)}/calendar`);
-    return data as {
-      busy: { id:number; startsAt:string; endsAt:string }[];
-      bookings: { id:number; date:string; status:string }[];
-    };
-  }
-  
-  export async function createUnavailability(startsAt: string, endsAt: string) {
-    const { data } = await api.post("/api/unavailability", { startsAt, endsAt });
-    return data as { item: { id:number; startsAt:string; endsAt:string } };
-  }
-  
-  export async function deleteUnavailability(id: number) {
-    const { data } = await api.delete(`/api/unavailability/${id}`);
-    return data as { ok: true };
-  }
-  
-  export async function getProviderIdByUsername(username: string) {
-    const { data } = await api.get(`/api/provider-id/${encodeURIComponent(username)}`);
-    return data as { id:number };
-  }
-  
-  export async function createBookingByDate(
-    videographerId: number|string,
-    startISO: string,
-    endISO: string,
-    note?: string
-  ) {
-    const { data } = await api.post("/api/bookings", {
-      videographerId,
-      start: startISO,
-      end: endISO,
-      note
-    });
-    return data as { booking: { id:number; status:string; date:string; durationMinutes: number } };
-  }
-  
-  
-  export async function createBookingInterval(
-    videographerId: number | string,
-    startISO: string,
-    endISO: string,
-    note?: string
-  ) {
-    const { data } = await api.post('/api/bookings', {
-      videographerId,
-      start: startISO,
-      end: endISO,
-      note
-    });
-    return data as { booking: any };
-  }
-  
+export async function deleteUnavailability(id: number) {
+  const { data } = await api.delete(`/api/unavailability/${id}`);
+  return data as { ok: true };
+}
 
-  export type ProviderMapItem = {
-    id: number;
-    username: string;
-    location: string;
-    lat: number;
-    lng: number;
-    specializations: string[];
-  };
-  
-  export async function getProvidersMap() {
-    const { data } = await api.get("/api/providers/map");
-    return data as { providers: ProviderMapItem[] };
-  }
+export async function getProviderIdByUsername(username: string) {
+  const { data } = await api.get(`/api/provider-id/${encodeURIComponent(username)}`);
+  return data as { id:number };
+}
 
+export async function createBookingByDate(
+  videographerId: number|string,
+  startISO: string,
+  endISO: string,
+  note?: string
+) {
+  const { data } = await api.post("/api/bookings", {
+    videographerId,
+    start: startISO,
+    end: endISO,
+    note
+  });
+  return data as { booking: { id:number; status:string; date:string; durationMinutes: number } };
+}
 
+export async function createBookingInterval(
+  videographerId: number | string,
+  startISO: string,
+  endISO: string,
+  note?: string
+) {
+  const { data } = await api.post('/api/bookings', {
+    videographerId,
+    start: startISO,
+    end: endISO,
+    note
+  });
+  return data as { booking: any };
+}
 
+export type ProviderMapItem = {
+  id: number;
+  username: string;
+  location: string;
+  lat: number;
+  lng: number;
+  specializations: string[];
+};
 
-  // =========================
-// ADMIN
-// =========================
+export async function getProvidersMap() {
+  const { data } = await api.get("/api/providers/map");
+  return data as { providers: ProviderMapItem[] };
+}
+
+/* ADMIN */
 export type Announcement = {
   id: number;
   title: string;
@@ -320,9 +274,10 @@ export type Announcement = {
   updatedAt?: string;
   createdBy?: { id: number | string; username?: string | null };
 };
+
 export async function getAnnouncements() {
   const { data } = await api.get("/api/announcements");
-  return data; // { announcements: [...] }
+  return data;
 }
 
 export async function adminListAnnouncements() {
@@ -360,6 +315,57 @@ export async function adminGetLogs() {
   return data as { logs: AdminLogItem[] };
 }
 
+export async function createReport(payload: {
+  targetType: "POST" | "COMMENT" | "USER";
+  postId?: number;
+  commentId?: number;
+  targetUserId?: number;
+  reason: string;
+  message?: string;
+}) {
+  const { data } = await api.post("/api/reports", payload);
+  return data;
+}
+
+/** ✅ FIXED */
+export async function adminListReports(params?: { status?: "OPEN" | "RESOLVED" }) {
+  const p = params?.status ? { status: params.status } : undefined;
+  const { data } = await api.get("/api/admin/reports", { params: p });
+  return data as { reports: any[] };
+}
+
+export async function adminResolveReport(id: number) {
+  const rid = Number(id);
+  if (!Number.isFinite(rid)) throw new Error("Invalid report id");
+
+  const { data } = await api.post(`/api/admin/reports/${rid}/resolve`, {});
+  return data;
+}
 
 
+export async function adminListPosts() {
+  const { data } = await api.get("/api/admin/posts");
+  return data as { posts: any[] };
+}
 
+export async function adminBanUser(userId: number | string, days = 7) {
+  const uid = Number(userId);
+  if (!Number.isFinite(uid)) throw new Error("Invalid userId for ban");
+
+  const { data } = await api.post(`/api/admin/users/${uid}/ban`, { days });
+  return data;
+}
+
+export async function adminWarnUser(userId: number | string, text: string) {
+  const uid = Number(userId);
+  if (!Number.isFinite(uid)) throw new Error("Invalid userId for warn");
+
+  const { data } = await api.post(`/api/admin/users/${uid}/warn`, { text });
+  return data;
+}
+
+
+export async function adminDeletePost(postId: number) {
+  const { data } = await api.delete(`/api/admin/posts/${postId}`);
+  return data;
+}

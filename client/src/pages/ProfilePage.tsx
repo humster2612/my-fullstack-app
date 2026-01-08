@@ -2,26 +2,33 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import Avatar from "../Avatar";
-import {getUserByUsername,getMe,getFollowStatus,followUser,unfollowUser, getUserPosts,createBooking,} from "../api";
-
+import {
+  getUserByUsername,
+  getMe,
+  getFollowStatus,
+  followUser,
+  unfollowUser,
+  getUserPosts,
+  createBooking,
+  getProviderReviews,
+} from "../api";
 
 type PublicUser = {
-    id: number | string;
-    username: string;
-    avatarUrl?: string;
-    bio?: string;
-    location?: string;
-    links?: string[];
-    followers?: number;
-    following?: number;
-    createdAt?: string;
-    role?: "CLIENT" | "VIDEOGRAPHER" | "PHOTOGRAPHER";
+  id: number | string;
+  username: string;
+  avatarUrl?: string;
+  bio?: string;
+  location?: string;
+  links?: string[];
+  followers?: number;
+  following?: number;
+  createdAt?: string;
+  role?: "CLIENT" | "VIDEOGRAPHER" | "PHOTOGRAPHER";
 
-    specialization?: string[];
-    pricePerHour?: number | null;
-    portfolioVideos?: string[];
-  };
-  
+  specialization?: string[];
+  pricePerHour?: number | null;
+  portfolioVideos?: string[];
+};
 
 type Post = {
   id: number | string;
@@ -30,6 +37,20 @@ type Post = {
   caption: string;
   location: string;
   createdAt: string;
+};
+
+type ProviderReview = {
+  id: number;
+  rating: number;
+  text: string;
+  createdAt: string;
+  client: { id: number | string; username: string; avatarUrl?: string };
+};
+
+type ReviewsPayload = {
+  reviews: ProviderReview[];
+  avgRating: number;
+  count: number;
 };
 
 export default function ProfilePage() {
@@ -43,6 +64,33 @@ export default function ProfilePage() {
   const [busy, setBusy] = useState(false);
 
   const [posts, setPosts] = useState<Post[] | null>(null);
+
+  const [reviewsData, setReviewsData] = useState<ReviewsPayload | null>(null);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsErr, setReviewsErr] = useState<string | null>(null);
+
+  // helpers
+  function formatDate(iso: string) {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime())
+      ? iso
+      : d.toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "2-digit",
+        });
+  }
+
+  function Stars({ value }: { value: number }) {
+    const full = Math.round(value); // если хочешь строже — замени на Math.floor(value)
+    const safe = Math.max(0, Math.min(5, full));
+    return (
+      <span aria-label={`rating ${value}`}>
+        {"★".repeat(safe)}
+        {"☆".repeat(5 - safe)}
+      </span>
+    );
+  }
 
   // Загружаем публичный профиль + посты
   useEffect(() => {
@@ -86,9 +134,31 @@ export default function ProfilePage() {
     })();
   }, [meId, user]);
 
+  // ✅ Reviews for provider
+  useEffect(() => {
+    if (!username) return;
+
+    (async () => {
+      setReviewsErr(null);
+      setReviewsData(null);
+
+      // отзывы нужны только для провайдера
+      if (!(user?.role === "VIDEOGRAPHER" || user?.role === "PHOTOGRAPHER")) return;
+
+      try {
+        setReviewsLoading(true);
+        const data = await getProviderReviews(username);
+        setReviewsData(data);
+      } catch (e: any) {
+        setReviewsErr(e?.response?.data?.error || "Failed to load reviews");
+      } finally {
+        setReviewsLoading(false);
+      }
+    })();
+  }, [username, user?.role]);
+
   async function onFollow() {
-    if (!user || !meId || meId === user.id) 
-        return;
+    if (!user || !meId || meId === user.id) return;
     setBusy(true);
     try {
       await followUser(user.id);
@@ -100,9 +170,9 @@ export default function ProfilePage() {
       setBusy(false);
     }
   }
+
   async function onUnfollow() {
-    if (!user || !meId || meId === user.id) 
-        return;
+    if (!user || !meId || meId === user.id) return;
     setBusy(true);
     try {
       await unfollowUser(user.id);
@@ -122,15 +192,13 @@ export default function ProfilePage() {
   if (!user) return null;
 
   const isMe = meId && user && meId === user.id;
-  const isProvider =
-    user.role === "VIDEOGRAPHER" || user.role === "PHOTOGRAPHER";
-  const canBook =
-    !isMe && !!meId && !!meUsername && isProvider; // чужой профиль и он провайдер
+  const isProvider = user.role === "VIDEOGRAPHER" || user.role === "PHOTOGRAPHER";
+  const canBook = !isMe && !!meId && !!meUsername && isProvider;
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <header style={{ display: "flex", alignItems: "center", gap: 16 }}>
-      <Avatar src={user.avatarUrl} size={96} alt={user.username} />
+        <Avatar src={user.avatarUrl} size={96} alt={user.username} />
         <div style={{ flex: 1 }}>
           <h2 style={{ margin: 0 }}>@{user.username}</h2>
           {user.role && (
@@ -144,8 +212,8 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {!isMe && meId && (
-          isFollowing ? (
+        {!isMe && meId &&
+          (isFollowing ? (
             <button disabled={busy} onClick={onUnfollow}>
               Unfollow
             </button>
@@ -153,12 +221,8 @@ export default function ProfilePage() {
             <button disabled={busy} onClick={onFollow}>
               Follow
             </button>
-          )
-        )}
-
+          ))}
       </header>
-
-      
 
       {isProvider && (
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
@@ -167,52 +231,125 @@ export default function ProfilePage() {
         </div>
       )}
 
-   {/* Кнопка бронирования — только если это провайдер и это не мой профиль */}
-{/* {canBook && <BookForm providerId={user.id} />} */}
+      {/* Кнопка бронирования — только если это провайдер и это не мой профиль */}
+      {/* {canBook && <BookForm providerId={user.id} />} */}
 
-{user.bio && <p>{user.bio}</p>}
+      {user.bio && <p>{user.bio}</p>}
 
-{!!user.links?.length && (
-  <ul style={{ margin: 0, paddingLeft: 18 }}>
-    {user.links.map((l) => (
-      <li key={l}>
-        <a href={l} target="_blank" rel="noreferrer">
-          {l}
-        </a>
-      </li>
-    ))}
-  </ul>
-)}
-
-{(user.role === 'VIDEOGRAPHER' || user.role === 'PHOTOGRAPHER') && (
-  <div style={{ border: "1px solid #333", borderRadius: 8, padding: 12, marginTop: 12 }}>
-    <h3>Professional info</h3>
-    <p><b>Role:</b> {user.role}</p>
-
-    {user.specialization?.length ? (
-      <p><b>Specialization:</b> {user.specialization.join(", ")}</p>
-    ) : null}
-
-    {user.pricePerHour ? (
-      <p><b>Price per hour:</b> {user.pricePerHour} €</p>
-    ) : null}
-
-    {user.portfolioVideos?.length ? (
-      <div>
-        <b>Portfolio:</b>
-        <ul>
-          {user.portfolioVideos.map((v, i) => (
-            <li key={i}>
-              <a href={v} target="_blank" rel="noreferrer">
-                {v}
+      {!!user.links?.length && (
+        <ul style={{ margin: 0, paddingLeft: 18 }}>
+          {user.links.map((l) => (
+            <li key={l}>
+              <a href={l} target="_blank" rel="noreferrer">
+                {l}
               </a>
             </li>
           ))}
         </ul>
-      </div>
-    ) : null}
-  </div>
-)}
+      )}
+
+      {isProvider && (
+        <div style={{ border: "1px solid #333", borderRadius: 8, padding: 12, marginTop: 12 }}>
+          <h3 style={{ marginTop: 0 }}>Professional info</h3>
+          <p>
+            <b>Role:</b> {user.role}
+          </p>
+
+          {user.specialization?.length ? (
+            <p>
+              <b>Specialization:</b> {user.specialization.join(", ")}
+            </p>
+          ) : null}
+
+          {user.pricePerHour ? (
+            <p>
+              <b>Price per hour:</b> {user.pricePerHour} €
+            </p>
+          ) : null}
+
+          {user.portfolioVideos?.length ? (
+            <div>
+              <b>Portfolio:</b>
+              <ul>
+                {user.portfolioVideos.map((v, i) => (
+                  <li key={i}>
+                    <a href={v} target="_blank" rel="noreferrer">
+                      {v}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {/* ✅ REVIEWS BLOCK */}
+      {isProvider && (
+        <section style={{ border: "1px solid #333", borderRadius: 12, padding: 12 }}>
+          <h3 style={{ marginTop: 0 }}>Reviews</h3>
+
+          {reviewsLoading ? (
+            <div>Loading reviews...</div>
+          ) : reviewsErr ? (
+            <div style={{ color: "crimson" }}>{reviewsErr}</div>
+          ) : reviewsData ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                <div style={{ fontSize: 18 }}>
+                  <b>{reviewsData.avgRating.toFixed(1)}</b>/5{" "}
+                  <span style={{ opacity: 0.8 }}>
+                    (<b>{reviewsData.count}</b>{" "}
+                    {reviewsData.count === 1 ? "review" : "reviews"})
+                  </span>
+                </div>
+                <div style={{ fontSize: 18 }}>
+                  <Stars value={reviewsData.avgRating} />
+                </div>
+              </div>
+
+              {reviewsData.reviews.length ? (
+                <div style={{ display: "grid", gap: 10 }}>
+                  {reviewsData.reviews.map((r) => (
+                    <div
+                      key={r.id}
+                      style={{
+                        border: "1px solid #333",
+                        borderRadius: 12,
+                        padding: 10,
+                        background: "rgba(255,255,255,0.02)",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <Avatar src={r.client.avatarUrl} size={34} alt={r.client.username} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 700 }}>@{r.client.username}</div>
+                          <div style={{ opacity: 0.7, fontSize: 12 }}>{formatDate(r.createdAt)}</div>
+                        </div>
+                        <div style={{ fontSize: 16 }}>
+                          <Stars value={r.rating} />{" "}
+                          <span style={{ opacity: 0.8 }}>{r.rating}/5</span>
+                        </div>
+                      </div>
+
+                      {r.text ? (
+                        <div style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>{r.text}</div>
+                      ) : (
+                        <div style={{ marginTop: 8, opacity: 0.7 }}>No text</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ opacity: 0.8 }}>No reviews yet</div>
+              )}
+            </>
+          ) : (
+            <div style={{ opacity: 0.8 }}>No reviews yet</div>
+          )}
+        </section>
+      )}
+
       <hr style={{ opacity: 0.2 }} />
 
       <h3 style={{ margin: 0 }}>Posts</h3>
@@ -225,13 +362,8 @@ export default function ProfilePage() {
               key={p.id}
               style={{ border: "1px solid #333", borderRadius: 12, overflow: "hidden" }}
             >
-              {/* Покажем видео, если есть; иначе фото */}
               {p.videoUrl ? (
-                <video
-                  src={p.videoUrl}
-                  controls
-                  style={{ width: "100%", display: "block" }}
-                />
+                <video src={p.videoUrl} controls style={{ width: "100%", display: "block" }} />
               ) : (
                 <img
                   src={p.imageUrl || "https://via.placeholder.com/600x400"}
@@ -239,6 +371,7 @@ export default function ProfilePage() {
                   style={{ width: "100%", display: "block" }}
                 />
               )}
+
               {(p.caption || p.location) && (
                 <div style={{ padding: 8 }}>
                   {p.location && <div style={{ opacity: 0.8 }}>📍 {p.location}</div>}

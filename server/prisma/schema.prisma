@@ -8,25 +8,50 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum Role {
+  CLIENT
+  VIDEOGRAPHER
+  PHOTOGRAPHER
+  ADMIN
+}
+
+enum ReportTargetType {
+  POST
+  COMMENT
+  USER
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+}
+
 model User {
   id               Int              @id @default(autoincrement())
   email            String           @unique
   password         String
   createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  username         String?          @unique
   avatarUrl        String           @default("")
   bio              String           @default("")
+  location         String           @default("")
+  links            Json?
+
   followers        Int              @default(0)
   following        Int              @default(0)
-  links            Json?
-  location         String           @default("")
-  updatedAt        DateTime         @updatedAt
-  username         String?          @unique
+
   portfolioVideos  String[]         @default([])
   pricePerHour     Int?
   role             Role             @default(CLIENT)
   specialization   String[]         @default([])
   latitude         Float?
   longitude        Float?
+
+  bannedUntil      DateTime?
+
+  // relations
   availabilities   Availability[]
   clientBookings   Booking[]        @relation("ClientBookings")
   providerBookings Booking[]        @relation("ProviderBookings")
@@ -37,19 +62,21 @@ model User {
   likes            Like[]
   comments         Comment[]
 
-  clientReviews   Review[]       @relation("ClientReviews")
-  providerReviews Review[]       @relation("ProviderReviews")
-  announcements   Announcement[]
-  adminLogs       AdminLog[]
+  clientReviews    Review[]         @relation("ClientReviews")
+  providerReviews  Review[]         @relation("ProviderReviews")
 
-  bannedUntil DateTime?
+    portfolioItems PortfolioItem[]
 
-  warnings      Warning[] @relation("WarningUser")
-  warningsGiven Warning[] @relation("WarningAdmin")
+  announcements    Announcement[]
+  adminLogs        AdminLog[]
 
-  reportsMade    Report[] @relation("ReportReporter")
-  reportsHandled Report[] @relation("ReportHandledBy")
-  reportsAgainst Report[] @relation("ReportTargetUser")
+  warnings         Warning[]        @relation("WarningUser")
+  warningsGiven    Warning[]        @relation("WarningAdmin")
+
+  // reports (важно: оставляем только эти 3, без лишнего `reports Report[]`)
+  reportsMade      Report[]         @relation("ReportReporter")
+  reportsHandled   Report[]         @relation("ReportHandledBy")
+  reportsAgainst   Report[]         @relation("ReportTargetUser")
 }
 
 model Post {
@@ -59,10 +86,12 @@ model Post {
   caption   String    @default("")
   location  String    @default("")
   createdAt DateTime  @default(now())
+
   author    User      @relation(fields: [authorId], references: [id])
   likes     Like[]
   comments  Comment[]
-  Report    Report[]
+
+  reports   Report[]  @relation("ReportPost")
 
   @@index([authorId])
   @@index([createdAt])
@@ -89,9 +118,10 @@ model Comment {
   text      String
   createdAt DateTime @default(now())
 
-  post   Post     @relation(fields: [postId], references: [id])
-  author User     @relation(fields: [authorId], references: [id])
-  Report Report[]
+  post   Post @relation(fields: [postId], references: [id])
+  author User @relation(fields: [authorId], references: [id])
+
+  reports Report[] @relation("ReportComment")
 
   @@index([postId, createdAt])
   @@index([authorId])
@@ -102,8 +132,9 @@ model Follow {
   followerId  Int
   followingId Int
   createdAt   DateTime @default(now())
-  follower    User     @relation("UserFollowing", fields: [followerId], references: [id])
-  following   User     @relation("UserFollowers", fields: [followingId], references: [id])
+
+  follower  User @relation("UserFollowing", fields: [followerId], references: [id])
+  following User @relation("UserFollowers", fields: [followingId], references: [id])
 
   @@unique([followerId, followingId])
   @@index([followerId])
@@ -117,6 +148,7 @@ model Availability {
   endsAt     DateTime
   isBooked   Boolean  @default(false)
   createdAt  DateTime @default(now())
+
   provider   User     @relation(fields: [providerId], references: [id])
 
   @@index([providerId, startsAt])
@@ -131,9 +163,11 @@ model Booking {
   status          String   @default("pending")
   note            String?
   durationMinutes Int      @default(60)
-  client          User     @relation("ClientBookings", fields: [clientId], references: [id])
-  videographer    User     @relation("ProviderBookings", fields: [videographerId], references: [id])
-  review          Review?
+
+  client       User   @relation("ClientBookings", fields: [clientId], references: [id])
+  videographer User   @relation("ProviderBookings", fields: [videographerId], references: [id])
+
+  review Review?
 
   @@index([videographerId, date])
   @@index([clientId, date])
@@ -146,17 +180,11 @@ model Unavailability {
   endsAt     DateTime
   reason     String?
   createdAt  DateTime @default(now())
+
   provider   User     @relation(fields: [providerId], references: [id])
 
   @@index([providerId, startsAt])
   @@index([startsAt, endsAt])
-}
-
-enum Role {
-  CLIENT
-  VIDEOGRAPHER
-  PHOTOGRAPHER
-  ADMIN
 }
 
 model Review {
@@ -206,24 +234,13 @@ model AdminLog {
   @@index([entity, entityId])
 }
 
-enum ReportTargetType {
-  POST
-  COMMENT
-  USER
-}
-
-enum ReportStatus {
-  OPEN
-  RESOLVED
-}
-
 model Report {
   id        Int          @id @default(autoincrement())
   createdAt DateTime     @default(now())
   status    ReportStatus @default(OPEN)
 
-  reason  String
-  message String?
+  reason    String
+  message   String?
 
   targetType   ReportTargetType
   postId       Int?
@@ -231,15 +248,19 @@ model Report {
   targetUserId Int?
 
   reporterId Int
-  reporter   User @relation("ReportReporter", fields: [reporterId], references: [id])
+  reporter   User  @relation("ReportReporter", fields: [reporterId], references: [id])
 
   handledById Int?
   handledBy   User? @relation("ReportHandledBy", fields: [handledById], references: [id])
 
-  // (опционально) быстрые связи:
-  post       Post?    @relation(fields: [postId], references: [id])
-  comment    Comment? @relation(fields: [commentId], references: [id])
+  post      Post?     @relation("ReportPost", fields: [postId], references: [id])
+  comment   Comment?  @relation("ReportComment", fields: [commentId], references: [id])
   targetUser User?    @relation("ReportTargetUser", fields: [targetUserId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([postId])
+  @@index([commentId])
+  @@index([targetUserId])
 }
 
 model Warning {
@@ -253,4 +274,27 @@ model Warning {
 
   adminId Int
   admin   User @relation("WarningAdmin", fields: [adminId], references: [id])
+}
+
+
+enum PortfolioType {
+  IMAGE
+  VIDEO
+  LINK
+}
+
+model PortfolioItem {
+  id          Int           @id @default(autoincrement())
+  providerId  Int
+  type        PortfolioType
+  title       String?
+  description String?
+  url         String
+  order       Int           @default(0)
+  createdAt   DateTime      @default(now())
+
+  provider    User          @relation(fields: [providerId], references: [id])
+
+  @@index([providerId, order])
+  @@index([providerId, createdAt])
 }

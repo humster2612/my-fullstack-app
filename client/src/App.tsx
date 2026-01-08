@@ -32,7 +32,6 @@ type User = {
 function App() {
   const [user, setUser] = useState<User | null>(null);
 
-  // подтягиваем профиль, если есть токен
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -53,6 +52,9 @@ function App() {
     setUser(null);
   };
 
+  const isAdmin = user?.role === "ADMIN";
+  const isProvider = user?.role === "VIDEOGRAPHER" || user?.role === "PHOTOGRAPHER";
+
   return (
     <BrowserRouter>
       <div style={{ maxWidth: 720, margin: "40px auto", padding: 16 }}>
@@ -68,24 +70,23 @@ function App() {
           <Link to="/">Home</Link>
           <Link to="/people">People</Link>
 
-          {!!user && user.username && (
+          {!!user && (user.username ? (
             <Link to={`/profile/${user.username}`}>My profile</Link>
-          )}
+          ) : null)}
+
           {!!user && <Link to="/settings">Settings</Link>}
           {!!user && <Link to="/create">Create</Link>}
-          {!!user && <Link to="/my-bookings">My bookings</Link>}
 
-          {!!user && user.role === "ADMIN" && <Link to="/admin">Admin</Link>}
+          {/* ✅ My bookings показываем всем авторизованным, КРОМЕ ADMIN */}
+          {!!user && !isAdmin && <Link to="/my-bookings">My bookings</Link>}
 
-          {!!user &&
-            (user.role === "VIDEOGRAPHER" || user.role === "PHOTOGRAPHER") && (
-              <Link to="/booking-requests">Booking requests</Link>
-            )}
+          {!!user && isAdmin && <Link to="/admin">Admin</Link>}
 
-          {!!user &&
-            (user.role === "VIDEOGRAPHER" || user.role === "PHOTOGRAPHER") && (
-              <Link to="/schedule">Schedule</Link>
-            )}
+          {!!user && isProvider && (
+            <Link to="/booking-requests">Booking requests</Link>
+          )}
+
+          {!!user && isProvider && <Link to="/schedule">Schedule</Link>}
 
           <div style={{ marginLeft: "auto" }} />
           {!!user ? (
@@ -101,15 +102,12 @@ function App() {
         </nav>
 
         <Routes>
-          {/* Лента — главная */}
           <Route path="/" element={<FeedPage />} />
 
-          {/* Публичные страницы */}
           <Route path="/people" element={<PeoplePage />} />
           <Route path="/profile/:username" element={<ProfilePage />} />
           <Route path="/book/:username" element={<BookProviderPage />} />
 
-          {/* Страницы только для авторизованных */}
           <Route
             path="/settings"
             element={user ? <SettingsPage /> : <Navigate to="/login" replace />}
@@ -120,52 +118,39 @@ function App() {
           />
           <Route
             path="/schedule"
-            element={
-              user ? <ProviderSchedulePage /> : <Navigate to="/login" replace />
-            }
+            element={user ? <ProviderSchedulePage /> : <Navigate to="/login" replace />}
           />
           <Route
             path="/booking-requests"
-            element={
-              user ? <BookingRequestsPage /> : <Navigate to="/login" replace />
-            }
-          />
-          <Route
-            path="/my-bookings"
-            element={user ? <MyBookingsPage /> : <Navigate to="/login" replace />}
+            element={user ? <BookingRequestsPage /> : <Navigate to="/login" replace />}
           />
 
-          {/* Auth */}
+          {/* ✅ Админу запрещаем эту страницу даже по прямой ссылке */}
+          <Route
+            path="/my-bookings"
+            element={
+              user ? (
+                isAdmin ? <Navigate to="/admin" replace /> : <MyBookingsPage />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          />
+
           <Route
             path="/login"
-            element={
-              user ? <Navigate to="/" replace /> : <Login onLoggedIn={setUser} />
-            }
+            element={user ? <Navigate to="/" replace /> : <Login onLoggedIn={setUser} />}
           />
           <Route
             path="/register"
-            element={
-              user ? (
-                <Navigate to="/" replace />
-              ) : (
-                <Register onRegistered={setUser} />
-              )
-            }
+            element={user ? <Navigate to="/" replace /> : <Register onRegistered={setUser} />}
           />
 
-          {/* Admin */}
           <Route
             path="/admin"
-            element={
-              user?.role === "ADMIN" ? (
-                <AdminPage />
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
+            element={user?.role === "ADMIN" ? <AdminPage /> : <Navigate to="/" replace />}
           />
 
-          {/* fallback */}
           <Route path="*" element={<div>Page not found</div>} />
         </Routes>
       </div>
@@ -194,7 +179,6 @@ function Login({ onLoggedIn }: { onLoggedIn: (u: User | null) => void }) {
       const res = await loginUser({ email, password });
       if (res?.token) localStorage.setItem("token", res.token);
 
-      // ✅ ВСЕГДА берем актуального пользователя с ролью из /api/users/me
       const me = await getMe();
       onLoggedIn(me.user ?? null);
 
@@ -247,11 +231,7 @@ function Login({ onLoggedIn }: { onLoggedIn: (u: User | null) => void }) {
   );
 }
 
-function Register({
-  onRegistered,
-}: {
-  onRegistered: (u: User | null) => void;
-}) {
+function Register({ onRegistered }: { onRegistered: (u: User | null) => void }) {
   const nav = useNavigate();
   const [email, setEmail] = useState<string>("");
   const [username, setUsername] = useState<string>("");
@@ -274,7 +254,6 @@ function Register({
       const logged = await loginUser({ email, password });
       if (logged?.token) localStorage.setItem("token", logged.token);
 
-      // ✅ ВСЕГДА берем актуального пользователя с ролью из /api/users/me
       const me = await getMe();
       onRegistered(me.user ?? null);
 
