@@ -42,7 +42,9 @@ model User {
   followers        Int              @default(0)
   following        Int              @default(0)
 
+  // можно оставить, не мешает (но теперь реальное портфолио = Posts)
   portfolioVideos  String[]         @default([])
+
   pricePerHour     Int?
   role             Role             @default(CLIENT)
   specialization   String[]         @default([])
@@ -65,7 +67,8 @@ model User {
   clientReviews    Review[]         @relation("ClientReviews")
   providerReviews  Review[]         @relation("ProviderReviews")
 
-    portfolioItems PortfolioItem[]
+  // можно оставить, но теперь не используем (если захочешь — потом удалим миграцией)
+  portfolioItems   PortfolioItem[]
 
   announcements    Announcement[]
   adminLogs        AdminLog[]
@@ -73,7 +76,6 @@ model User {
   warnings         Warning[]        @relation("WarningUser")
   warningsGiven    Warning[]        @relation("WarningAdmin")
 
-  // reports (важно: оставляем только эти 3, без лишнего `reports Report[]`)
   reportsMade      Report[]         @relation("ReportReporter")
   reportsHandled   Report[]         @relation("ReportHandledBy")
   reportsAgainst   Report[]         @relation("ReportTargetUser")
@@ -82,7 +84,11 @@ model User {
 model Post {
   id        Int       @id @default(autoincrement())
   authorId  Int
-  imageUrl  String
+
+  // ✅ теперь: либо imageUrl, либо videoUrl
+  imageUrl  String    @default("")
+  videoUrl  String?
+
   caption   String    @default("")
   location  String    @default("")
   createdAt DateTime  @default(now())
@@ -276,7 +282,6 @@ model Warning {
   admin   User @relation("WarningAdmin", fields: [adminId], references: [id])
 }
 
-
 enum PortfolioType {
   IMAGE
   VIDEO
@@ -298,3 +303,6 @@ model PortfolioItem {
   @@index([providerId, order])
   @@index([providerId, createdAt])
 }
+
+
+
