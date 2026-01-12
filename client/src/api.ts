@@ -19,17 +19,45 @@ api.interceptors.request.use((config) => {
 /* AUTH */
 export type LoginPayload = { email: string; password: string };
 export type RegisterPayload = { email: string; password: string; username?: string };
-export async function registerUser(payload: RegisterPayload) { const { data } = await api.post("/api/auth/register", payload); return data; }
-export async function loginUser(payload: LoginPayload) { const { data } = await api.post("/api/auth/login", payload); return data; }
-export async function getMe() { const { data } = await api.get("/api/users/me"); return data; }
+
+export async function registerUser(payload: RegisterPayload) {
+  const { data } = await api.post("/api/auth/register", payload);
+  return data;
+}
+export async function loginUser(payload: LoginPayload) {
+  const { data } = await api.post("/api/auth/login", payload);
+  return data;
+}
+export async function getMe() {
+  const { data } = await api.get("/api/users/me");
+  return data;
+}
 
 /* PROFILE */
-export async function getUserByUsername(username: string) { const { data } = await api.get(`/api/users/${username}`); return data; }
-export type UpdateMePayload = { username?: string; avatarUrl?: string; bio?: string; location?: string; links?: string[]; };
-export async function updateMe(payload: UpdateMePayload) { const { data } = await api.patch("/api/users/me", payload); return data; }
+export async function getUserByUsername(username: string) {
+  const { data } = await api.get(`/api/users/${username}`);
+  return data;
+}
+
+export type UpdateMePayload = {
+  username?: string;
+  avatarUrl?: string;
+  bio?: string;
+  location?: string;
+  links?: string[];
+};
+
+export async function updateMe(payload: UpdateMePayload) {
+  const { data } = await api.patch("/api/users/me", payload);
+  return data;
+}
+
 export async function uploadAvatar(file: File) {
-  const fd = new FormData(); fd.append("file", file);
-  const { data } = await api.post("/api/users/me/avatar", fd, { headers: { "Content-Type": "multipart/form-data" } });
+  const fd = new FormData();
+  fd.append("file", file);
+  const { data } = await api.post("/api/users/me/avatar", fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return data as { url: string };
 }
 
@@ -37,6 +65,7 @@ export async function uploadAvatar(file: File) {
 export async function listUsers(params?: { q?: string; limit?: number; cursor?: number | string }) {
   const { q = "", limit = 20, cursor } = params || {};
   const { data } = await api.get("/api/users", { params: { q, limit, cursor } });
+
   return data as {
     users: Array<{
       id: number | string;
@@ -52,9 +81,18 @@ export async function listUsers(params?: { q?: string; limit?: number; cursor?: 
 }
 
 /* FOLLOW */
-export async function getFollowStatus(userId: number | string) { const { data } = await api.get(`/api/follow/status/${userId}`); return data as { following: boolean }; }
-export async function followUser(userId: number | string) { const { data } = await api.post(`/api/follow/${userId}`); return data as { ok: true }; }
-export async function unfollowUser(userId: number | string) { const { data } = await api.delete(`/api/follow/${userId}`); return data as { ok: true }; }
+export async function getFollowStatus(userId: number | string) {
+  const { data } = await api.get(`/api/follow/status/${userId}`);
+  return data as { following: boolean };
+}
+export async function followUser(userId: number | string) {
+  const { data } = await api.post(`/api/follow/${userId}`);
+  return data as { ok: true };
+}
+export async function unfollowUser(userId: number | string) {
+  const { data } = await api.delete(`/api/follow/${userId}`);
+  return data as { ok: true };
+}
 
 /* POSTS */
 export async function createPost(file: File, payload: { caption?: string; location?: string }) {
@@ -62,15 +100,35 @@ export async function createPost(file: File, payload: { caption?: string; locati
   fd.append("file", file);
   if (payload.caption) fd.append("caption", payload.caption);
   if (payload.location) fd.append("location", payload.location);
+
   const { data } = await api.post("/api/posts", fd, {
     headers: { "Content-Type": "multipart/form-data" },
   });
-  return data as { post: { id: number|string; imageUrl: string; caption: string; location: string; createdAt: string } };
+
+  return data as {
+    post: {
+      id: number | string;
+      imageUrl: string;
+      videoUrl?: string | null;
+      caption: string;
+      location: string;
+      createdAt: string;
+    };
+  };
 }
 
 export async function getUserPosts(username: string) {
   const { data } = await api.get(`/api/users/${username}/posts`);
-  return data as { posts: Array<{ id:number|string; imageUrl:string; caption:string; location:string; createdAt:string }> };
+  return data as {
+    posts: Array<{
+      id: number | string;
+      imageUrl: string;
+      videoUrl?: string | null;
+      caption: string;
+      location: string;
+      createdAt: string;
+    }>;
+  };
 }
 
 /* FEED */
@@ -82,6 +140,7 @@ export async function getFeed(params?: { cursor?: number | string; limit?: numbe
     posts: Array<{
       id: number | string;
       imageUrl: string;
+      videoUrl?: string | null;
       caption: string;
       location: string;
       createdAt: string;
@@ -160,7 +219,7 @@ export async function getProviderReviews(username: string) {
 
 /* Profile extensions */
 export type UpdateMeProPayload = {
-  role?: 'CLIENT' | 'VIDEOGRAPHER' | 'PHOTOGRAPHER';
+  role?: "CLIENT" | "VIDEOGRAPHER" | "PHOTOGRAPHER";
   specialization?: string[];
   pricePerHour?: number | null;
   location?: string;
@@ -174,25 +233,25 @@ export type UpdateMeProPayload = {
 };
 
 export async function updateMePro(payload: UpdateMeProPayload) {
-  const { data } = await api.patch('/api/users/me', payload);
+  const { data } = await api.patch("/api/users/me", payload);
   return data;
 }
 
 /* Bookings */
 export async function createBooking(videographerId: number | string, dateISO: string, note?: string) {
-  const { data } = await api.post('/api/bookings', { videographerId, date: dateISO, note });
+  const { data } = await api.post("/api/bookings", { videographerId, date: dateISO, note });
   return data as { booking: any };
 }
 export async function myBookings() {
-  const { data } = await api.get('/api/bookings/my');
+  const { data } = await api.get("/api/bookings/my");
   return data as { bookings: any[] };
 }
 export async function toMeBookings() {
-  const { data } = await api.get('/api/bookings/to-me');
+  const { data } = await api.get("/api/bookings/to-me");
   return data as { bookings: any[] };
 }
 
-export async function updateBooking(id: number | string, action: 'confirm' | 'decline' | 'cancel' | 'done') {
+export async function updateBooking(id: number | string, action: "confirm" | "decline" | "cancel" | "done") {
   const { data } = await api.patch(`/api/bookings/${id}`, { action });
   return data as { booking: any };
 }
@@ -200,14 +259,14 @@ export async function updateBooking(id: number | string, action: 'confirm' | 'de
 export async function getProviderUnavailability(username: string) {
   const { data } = await api.get(`/api/providers/${encodeURIComponent(username)}/calendar`);
   return data as {
-    busy: { id:number; startsAt:string; endsAt:string }[];
-    bookings: { id:number; date:string; status:string }[];
+    busy: { id: number; startsAt: string; endsAt: string }[];
+    bookings: { id: number; date: string; status: string }[];
   };
 }
 
 export async function createUnavailability(startsAt: string, endsAt: string) {
   const { data } = await api.post("/api/unavailability", { startsAt, endsAt });
-  return data as { item: { id:number; startsAt:string; endsAt:string } };
+  return data as { item: { id: number; startsAt: string; endsAt: string } };
 }
 
 export async function deleteUnavailability(id: number) {
@@ -217,11 +276,11 @@ export async function deleteUnavailability(id: number) {
 
 export async function getProviderIdByUsername(username: string) {
   const { data } = await api.get(`/api/provider-id/${encodeURIComponent(username)}`);
-  return data as { id:number };
+  return data as { id: number };
 }
 
 export async function createBookingByDate(
-  videographerId: number|string,
+  videographerId: number | string,
   startISO: string,
   endISO: string,
   note?: string
@@ -230,9 +289,9 @@ export async function createBookingByDate(
     videographerId,
     start: startISO,
     end: endISO,
-    note
+    note,
   });
-  return data as { booking: { id:number; status:string; date:string; durationMinutes: number } };
+  return data as { booking: { id: number; status: string; date: string; durationMinutes: number } };
 }
 
 export async function createBookingInterval(
@@ -241,11 +300,11 @@ export async function createBookingInterval(
   endISO: string,
   note?: string
 ) {
-  const { data } = await api.post('/api/bookings', {
+  const { data } = await api.post("/api/bookings", {
     videographerId,
     start: startISO,
     end: endISO,
-    note
+    note,
   });
   return data as { booking: any };
 }
@@ -327,7 +386,6 @@ export async function createReport(payload: {
   return data;
 }
 
-/** ✅ FIXED */
 export async function adminListReports(params?: { status?: "OPEN" | "RESOLVED" }) {
   const p = params?.status ? { status: params.status } : undefined;
   const { data } = await api.get("/api/admin/reports", { params: p });
@@ -337,11 +395,9 @@ export async function adminListReports(params?: { status?: "OPEN" | "RESOLVED" }
 export async function adminResolveReport(id: number) {
   const rid = Number(id);
   if (!Number.isFinite(rid)) throw new Error("Invalid report id");
-
   const { data } = await api.post(`/api/admin/reports/${rid}/resolve`, {});
   return data;
 }
-
 
 export async function adminListPosts() {
   const { data } = await api.get("/api/admin/posts");
@@ -351,7 +407,6 @@ export async function adminListPosts() {
 export async function adminBanUser(userId: number | string, days = 7) {
   const uid = Number(userId);
   if (!Number.isFinite(uid)) throw new Error("Invalid userId for ban");
-
   const { data } = await api.post(`/api/admin/users/${uid}/ban`, { days });
   return data;
 }
@@ -359,13 +414,65 @@ export async function adminBanUser(userId: number | string, days = 7) {
 export async function adminWarnUser(userId: number | string, text: string) {
   const uid = Number(userId);
   if (!Number.isFinite(uid)) throw new Error("Invalid userId for warn");
-
   const { data } = await api.post(`/api/admin/users/${uid}/warn`, { text });
   return data;
 }
 
-
 export async function adminDeletePost(postId: number) {
   const { data } = await api.delete(`/api/admin/posts/${postId}`);
   return data;
+}
+
+/* ✅ Provider Portfolio (NEW) */
+export type ProviderPortfolioItem = {
+  id: number;
+  kind: "IMAGE" | "VIDEO" | "LINK";
+  title?: string | null;
+  url: string;
+  thumbUrl?: string | null;
+  description?: string | null;
+  order?: number | null;
+  createdAt?: string;
+};
+
+export async function getUserPortfolio(username: string) {
+  const { data } = await api.get(`/api/users/${encodeURIComponent(username)}/portfolio`);
+  return data as { items: ProviderPortfolioItem[] };
+}
+
+export async function getMyPortfolio() {
+  const { data } = await api.get(`/api/users/me/portfolio`);
+  return data as { items: ProviderPortfolioItem[] };
+}
+
+export async function createPortfolioItem(payload: {
+  kind?: "IMAGE" | "VIDEO" | "LINK";
+  title?: string;
+  url: string;
+  thumbUrl?: string;
+  description?: string;
+  order?: number;
+}) {
+  const { data } = await api.post(`/api/users/me/portfolio`, payload);
+  return data as { item: ProviderPortfolioItem };
+}
+
+export async function updatePortfolioItem(
+  id: number,
+  payload: Partial<{
+    kind: "IMAGE" | "VIDEO" | "LINK";
+    title: string | null;
+    url: string;
+    thumbUrl: string | null;
+    description: string | null;
+    order: number;
+  }>
+) {
+  const { data } = await api.patch(`/api/users/me/portfolio/${id}`, payload);
+  return data as { item: ProviderPortfolioItem };
+}
+
+export async function deletePortfolioItem(id: number) {
+  const { data } = await api.delete(`/api/users/me/portfolio/${id}`);
+  return data as { ok: true };
 }

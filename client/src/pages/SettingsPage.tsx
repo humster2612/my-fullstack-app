@@ -1,5 +1,5 @@
 // client/src/pages/SettingsPage.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMe, uploadAvatar, updateMePro } from "../api";
 import { CITY_OPTIONS, type CityOption } from "../locationOptions";
@@ -25,18 +25,8 @@ type Me = {
 // 👇 helper-функция, чтобы красиво собрать текст локации
 function formatLocationFromCity(city: CityOption | undefined): string {
   if (!city) return "";
-
-  const anyCity = city as any;
-
-  if (anyCity.city && anyCity.country) {
-    return `${anyCity.city}, ${anyCity.country}`;
-  }
-
-  if (anyCity.label) {
-    return String(anyCity.label);
-  }
-
-  return String(anyCity.id);
+  // ТВОЯ структура: city + countryName
+  return `${city.city}, ${city.countryName}`;
 }
 
 export default function SettingsPage() {
@@ -45,6 +35,9 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // ✅ поиск по городам
+  const [cityQuery, setCityQuery] = useState("");
 
   // выбор города + координаты
   const [selectedCityId, setSelectedCityId] = useState<CityOption["id"] | "">(
@@ -71,6 +64,20 @@ export default function SettingsPage() {
   const [spec, setSpec] = useState(""); // строка через запятую
   const [price, setPrice] = useState<number | null>(null);
   const [videos, setVideos] = useState(""); // строка ссылок через запятую
+
+  // ✅ отфильтрованные города по поиску
+  const filteredCities = useMemo(() => {
+    const q = cityQuery.trim().toLowerCase();
+    if (!q) return CITY_OPTIONS;
+
+    return CITY_OPTIONS.filter((c) => {
+      return (
+        c.city.toLowerCase().includes(q) ||
+        c.countryName.toLowerCase().includes(q) ||
+        c.countryCode.toLowerCase().includes(q)
+      );
+    });
+  }, [cityQuery]);
 
   useEffect(() => {
     (async () => {
@@ -101,6 +108,9 @@ export default function SettingsPage() {
             setSelectedCityId(found.id);
             setLat(found.lat);
             setLng(found.lng);
+
+            // ✅ чтобы поиск/селект выглядели логично
+            setCityQuery(`${found.city}`);
           }
         }
       } catch (e: any) {
@@ -262,17 +272,30 @@ export default function SettingsPage() {
         />
       </label>
 
-      {/* Город для карты */}
+      {/* ✅ Город для карты + поиск */}
       <label>
         City for map
-        <select value={selectedCityId} onChange={handleCityChange}>
-          <option value="">Not selected</option>
-          {CITY_OPTIONS.map((c) => (
-            <option key={c.id} value={c.id}>
-              {String((c as any).label ?? (c as any).city ?? c.id)}
-            </option>
-          ))}
-        </select>
+        <div style={{ display: "grid", gap: 6 }}>
+          <input
+            value={cityQuery}
+            onChange={(e) => setCityQuery(e.target.value)}
+            placeholder="Search city or country (e.g. Paris, US, Japan...)"
+            autoComplete="off"
+          />
+
+          <select value={selectedCityId} onChange={handleCityChange}>
+            <option value="">Not selected</option>
+            {filteredCities.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.city} — {c.countryName}
+              </option>
+            ))}
+          </select>
+
+          <div style={{ fontSize: 12, opacity: 0.7 }}>
+            Showing {filteredCities.length} cities
+          </div>
+        </div>
       </label>
 
       {/* Bio */}

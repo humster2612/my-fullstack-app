@@ -1,13 +1,6 @@
 // client/src/App.tsx
 import { useEffect, useState } from "react";
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Link,
-  useNavigate,
-  Navigate,
-} from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link, useNavigate, Navigate } from "react-router-dom";
 
 import FeedPage from "./pages/FeedPage";
 import PeoplePage from "./pages/PeoplePage";
@@ -19,6 +12,7 @@ import ProviderSchedulePage from "./pages/ProviderSchedulePage";
 import BookingRequestsPage from "./pages/BookingRequestsPage";
 import MyBookingsPage from "./pages/MyBookingsPage";
 import AdminPage from "./pages/AdminPage";
+import NotificationsPage from "./pages/NotificationsPage";
 
 import { loginUser, registerUser, getMe } from "./api";
 
@@ -31,10 +25,14 @@ type User = {
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [authChecked, setAuthChecked] = useState(false); // ✅ чтобы не было "мигания" контента
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!token) {
+      setAuthChecked(true);
+      return;
+    }
 
     (async () => {
       try {
@@ -43,6 +41,8 @@ function App() {
       } catch {
         localStorage.removeItem("token");
         setUser(null);
+      } finally {
+        setAuthChecked(true);
       }
     })();
   }, []);
@@ -54,6 +54,9 @@ function App() {
 
   const isAdmin = user?.role === "ADMIN";
   const isProvider = user?.role === "VIDEOGRAPHER" || user?.role === "PHOTOGRAPHER";
+
+  // ✅ пока не проверили токен — не рендерим ничего, чтобы не показывались страницы на секунду
+  if (!authChecked) return null;
 
   return (
     <BrowserRouter>
@@ -67,92 +70,79 @@ function App() {
             flexWrap: "wrap",
           }}
         >
-          <Link to="/">Home</Link>
-          <Link to="/people">People</Link>
-
-          {!!user && (user.username ? (
-            <Link to={`/profile/${user.username}`}>My profile</Link>
-          ) : null)}
-
-          {!!user && <Link to="/settings">Settings</Link>}
-          {!!user && <Link to="/create">Create</Link>}
-
-          {/* ✅ My bookings показываем всем авторизованным, КРОМЕ ADMIN */}
-          {!!user && !isAdmin && <Link to="/my-bookings">My bookings</Link>}
-
-          {!!user && isAdmin && <Link to="/admin">Admin</Link>}
-
-          {!!user && isProvider && (
-            <Link to="/booking-requests">Booking requests</Link>
-          )}
-
-          {!!user && isProvider && <Link to="/schedule">Schedule</Link>}
-
-          <div style={{ marginLeft: "auto" }} />
-          {!!user ? (
-            <button onClick={handleLogout} style={{ cursor: "pointer" }}>
-              Logout
-            </button>
-          ) : (
+          {/* ✅ НЕлогину показываем только Login/Register */}
+          {!user ? (
             <>
               <Link to="/login">Login</Link>
               <Link to="/register">Register</Link>
             </>
+          ) : (
+            <>
+              <Link to="/">Home</Link>
+              <Link to="/people">People</Link>
+
+              {user.username ? <Link to={`/profile/${user.username}`}>My profile</Link> : null}
+
+              <Link to="/settings">Settings</Link>
+              <Link to="/notifications">🔔 Notifications</Link>
+              <Link to="/create">Create</Link>
+
+              {/* ✅ My bookings всем авторизованным, кроме ADMIN */}
+              {!isAdmin && <Link to="/my-bookings">My bookings</Link>}
+
+              {isAdmin && <Link to="/admin">Admin</Link>}
+
+              {isProvider && <Link to="/booking-requests">Booking requests</Link>}
+              {isProvider && <Link to="/schedule">Schedule</Link>}
+
+              <div style={{ marginLeft: "auto" }} />
+              <button onClick={handleLogout} style={{ cursor: "pointer" }}>
+                Logout
+              </button>
+            </>
           )}
         </nav>
 
-        <Routes>
-          <Route path="/" element={<FeedPage />} />
+        {/* ✅ если НЕ авторизован — доступны только /login и /register, всё остальное -> /login */}
+        {!user ? (
+          <Routes>
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/login" element={<Login onLoggedIn={setUser} />} />
+            <Route path="/register" element={<Register onRegistered={setUser} />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        ) : (
+          <Routes>
+            <Route path="/" element={<FeedPage />} />
 
-          <Route path="/people" element={<PeoplePage />} />
-          <Route path="/profile/:username" element={<ProfilePage />} />
-          <Route path="/book/:username" element={<BookProviderPage />} />
+            <Route path="/people" element={<PeoplePage />} />
+            <Route path="/profile/:username" element={<ProfilePage />} />
+            <Route path="/book/:username" element={<BookProviderPage />} />
 
-          <Route
-            path="/settings"
-            element={user ? <SettingsPage /> : <Navigate to="/login" replace />}
-          />
-          <Route
-            path="/create"
-            element={user ? <CreatePostPage /> : <Navigate to="/login" replace />}
-          />
-          <Route
-            path="/schedule"
-            element={user ? <ProviderSchedulePage /> : <Navigate to="/login" replace />}
-          />
-          <Route
-            path="/booking-requests"
-            element={user ? <BookingRequestsPage /> : <Navigate to="/login" replace />}
-          />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/create" element={<CreatePostPage />} />
+            <Route path="/schedule" element={<ProviderSchedulePage />} />
+            <Route path="/booking-requests" element={<BookingRequestsPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
 
-          {/* ✅ Админу запрещаем эту страницу даже по прямой ссылке */}
-          <Route
-            path="/my-bookings"
-            element={
-              user ? (
-                isAdmin ? <Navigate to="/admin" replace /> : <MyBookingsPage />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
+            {/* ✅ Админу запрещаем MyBookings даже по прямой ссылке */}
+            <Route
+              path="/my-bookings"
+              element={isAdmin ? <Navigate to="/admin" replace /> : <MyBookingsPage />}
+            />
 
-          <Route
-            path="/login"
-            element={user ? <Navigate to="/" replace /> : <Login onLoggedIn={setUser} />}
-          />
-          <Route
-            path="/register"
-            element={user ? <Navigate to="/" replace /> : <Register onRegistered={setUser} />}
-          />
+            <Route
+              path="/admin"
+              element={user.role === "ADMIN" ? <AdminPage /> : <Navigate to="/" replace />}
+            />
 
-          <Route
-            path="/admin"
-            element={user?.role === "ADMIN" ? <AdminPage /> : <Navigate to="/" replace />}
-          />
+            {/* ✅ если залогинен и случайно пошёл на /login — вернём на / */}
+            <Route path="/login" element={<Navigate to="/" replace />} />
+            <Route path="/register" element={<Navigate to="/" replace />} />
 
-          <Route path="*" element={<div>Page not found</div>} />
-        </Routes>
+            <Route path="*" element={<div>Page not found</div>} />
+          </Routes>
+        )}
       </div>
     </BrowserRouter>
   );

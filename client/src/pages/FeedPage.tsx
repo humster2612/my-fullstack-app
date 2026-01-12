@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { getFeed, toggleLike, addComment, getAnnouncements, createReport } from "../api";
 import type { Announcement } from "../api";
@@ -6,6 +6,7 @@ import type { Announcement } from "../api";
 type FeedPost = {
   id: number | string;
   imageUrl: string;
+  videoUrl?: string | null;
   caption: string;
   location: string;
   createdAt: string;
@@ -24,6 +25,56 @@ type FeedPost = {
 
 type Flash = { type: "ok" | "err"; text: string } | null;
 
+const FALLBACK_AVATAR =
+  "data:image/svg+xml;charset=utf-8," +
+  encodeURIComponent(`
+  <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80">
+    <rect width="100%" height="100%" fill="#2b2b2b"/>
+    <circle cx="40" cy="32" r="14" fill="#777"/>
+    <rect x="18" y="52" width="44" height="18" rx="9" fill="#777"/>
+  </svg>
+`);
+
+function useAutoPlayOnView() {
+  const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
+
+  useEffect(() => {
+    const els = Object.entries(videoRefs.current)
+      .map(([_, el]) => el)
+      .filter(Boolean) as HTMLVideoElement[];
+
+    if (!els.length) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const v = entry.target as HTMLVideoElement;
+
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+            const p = v.play();
+            if (p && typeof p.catch === "function") p.catch(() => {});
+          } else {
+            v.pause();
+          }
+        });
+      },
+      { threshold: [0, 0.2, 0.6, 0.9] }
+    );
+
+    els.forEach((v) => io.observe(v));
+    return () => io.disconnect();
+  }, []);
+
+  function bind(id: number | string) {
+    const key = String(id);
+    return (el: HTMLVideoElement | null) => {
+      videoRefs.current[key] = el;
+    };
+  }
+
+  return { bind };
+}
+
 export default function FeedPage() {
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [cursor, setCursor] = useState<number | null>(null);
@@ -33,11 +84,10 @@ export default function FeedPage() {
   const [commentText, setCommentText] = useState<Record<string, string>>({});
   const [busyPostId, setBusyPostId] = useState<number | string | null>(null);
 
-  // ✅ Announcements
   const [anns, setAnns] = useState<Announcement[]>([]);
-
-  // ✅ вместо alert()
   const [flash, setFlash] = useState<Flash>(null);
+
+  const { bind } = useAutoPlayOnView();
 
   function showOk(text: string) {
     setFlash({ type: "ok", text });
@@ -52,9 +102,7 @@ export default function FeedPage() {
     try {
       const res = await getAnnouncements();
       setAnns(res.announcements || []);
-    } catch {
-      // без alert
-    }
+    } catch {}
   }
 
   useEffect(() => {
@@ -89,9 +137,7 @@ export default function FeedPage() {
     try {
       const res = await toggleLike(postId);
       setPosts((arr) =>
-        arr.map((p) =>
-          p.id === postId ? { ...p, likedByMe: res.liked, likeCount: res.count } : p
-        )
+        arr.map((p) => (p.id === postId ? { ...p, likedByMe: res.liked, likeCount: res.count } : p))
       );
     } catch (e: any) {
       showErr(e?.response?.data?.error || e?.message || "Like failed");
@@ -111,14 +157,8 @@ export default function FeedPage() {
       setPosts((arr) =>
         arr.map((p) => {
           if (p.id !== postId) return p;
-
           const updatedLast = [...(p.lastComments || []), res.comment].slice(-2);
-
-          return {
-            ...p,
-            commentCount: res.count,
-            lastComments: updatedLast,
-          };
+          return { ...p, commentCount: res.count, lastComments: updatedLast };
         })
       );
 
@@ -144,12 +184,7 @@ export default function FeedPage() {
       });
       showOk("Report sent ✅");
     } catch (e: any) {
-      // ✅ покажем нормальную причину
-      const msg =
-        e?.response?.status === 404
-          ? "Report endpoint not found (404). Проверь, что backend запущен и обновлён."
-          : e?.response?.data?.error || e?.message || "Report failed";
-      showErr(msg);
+      showErr(e?.response?.data?.error || e?.message || "Report failed");
     }
   }
 
@@ -167,11 +202,7 @@ export default function FeedPage() {
       });
       showOk("Report sent ✅");
     } catch (e: any) {
-      const msg =
-        e?.response?.status === 404
-          ? "Report endpoint not found (404). Проверь backend."
-          : e?.response?.data?.error || e?.message || "Report failed";
-      showErr(msg);
+      showErr(e?.response?.data?.error || e?.message || "Report failed");
     }
   }
 
@@ -181,7 +212,6 @@ export default function FeedPage() {
     <div style={{ display: "grid", gap: 16 }}>
       <h1>Home</h1>
 
-      {/* ✅ flash вместо alert */}
       {flash && (
         <div
           style={{
@@ -196,7 +226,6 @@ export default function FeedPage() {
         </div>
       )}
 
-      {/* ✅ Announcements */}
       {!!anns.length && (
         <div style={{ border: "1px solid #333", borderRadius: 12, padding: 12 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -212,13 +241,7 @@ export default function FeedPage() {
             {anns.map((a) => (
               <div key={a.id} style={{ borderBottom: "1px solid #2a2a2a", paddingBottom: 10 }}>
                 <div style={{ fontWeight: 700 }}>{a.title}</div>
-
-                {!!a.body && (
-                  <div style={{ opacity: 0.9, whiteSpace: "pre-wrap", marginTop: 4 }}>
-                    {a.body}
-                  </div>
-                )}
-
+                {!!a.body && <div style={{ opacity: 0.9, whiteSpace: "pre-wrap", marginTop: 4 }}>{a.body}</div>}
                 <div style={{ fontSize: 12, opacity: 0.65, marginTop: 6 }}>
                   {new Date(a.createdAt).toLocaleString()}
                   {a.createdBy?.username ? ` · by @${a.createdBy.username}` : ""}
@@ -232,13 +255,10 @@ export default function FeedPage() {
       {err && <div style={{ color: "crimson" }}>{err}</div>}
 
       {posts.map((p) => (
-        <article
-          key={p.id}
-          style={{ border: "1px solid #333", borderRadius: 12, overflow: "hidden" }}
-        >
+        <article key={p.id} style={{ border: "1px solid #333", borderRadius: 12, overflow: "hidden" }}>
           <header style={{ display: "flex", alignItems: "center", gap: 10, padding: 8 }}>
             <img
-              src={p.author.avatarUrl || "https://via.placeholder.com/40"}
+              src={(p.author.avatarUrl && p.author.avatarUrl.trim()) ? p.author.avatarUrl : FALLBACK_AVATAR}
               width={40}
               height={40}
               style={{ borderRadius: "50%", objectFit: "cover" }}
@@ -252,7 +272,25 @@ export default function FeedPage() {
             </span>
           </header>
 
-          <img src={p.imageUrl} alt="" style={{ width: "100%", display: "block" }} />
+          {p.videoUrl ? (
+            <video
+              ref={bind(p.id)}
+              src={p.videoUrl}
+              muted
+              playsInline
+              loop
+              autoPlay
+              preload="metadata"
+              style={{ width: "100%", display: "block", maxHeight: 650, objectFit: "cover" }}
+              onClick={(e) => {
+                const v = e.currentTarget;
+                if (v.paused) v.play().catch(() => {});
+                else v.pause();
+              }}
+            />
+          ) : (
+            <img src={p.imageUrl} alt="" style={{ width: "100%", display: "block" }} />
+          )}
 
           {(p.caption || p.location) && (
             <div style={{ padding: 8 }}>
@@ -263,12 +301,7 @@ export default function FeedPage() {
 
           <div style={{ padding: 8, display: "grid", gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <button
-                onClick={() => onToggleLike(p.id)}
-                disabled={busyPostId === p.id}
-                style={{ cursor: "pointer" }}
-                type="button"
-              >
+              <button onClick={() => onToggleLike(p.id)} disabled={busyPostId === p.id} style={{ cursor: "pointer" }} type="button">
                 {p.likedByMe ? "❤️" : "🤍"} {p.likeCount}
               </button>
 
@@ -282,20 +315,11 @@ export default function FeedPage() {
             {!!p.lastComments?.length && (
               <div style={{ display: "grid", gap: 6 }}>
                 {p.lastComments.map((c) => (
-                  <div
-                    key={c.id}
-                    style={{ fontSize: 13, opacity: 0.9, display: "flex", gap: 8 }}
-                  >
+                  <div key={c.id} style={{ fontSize: 13, opacity: 0.9, display: "flex", gap: 8 }}>
                     <div style={{ flex: 1 }}>
                       <b>@{c.author.username}</b> {c.text}
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => onReportComment(Number(c.id))}
-                      style={{ fontSize: 12 }}
-                      title="Report comment"
-                    >
+                    <button type="button" onClick={() => onReportComment(Number(c.id))} style={{ fontSize: 12 }} title="Report comment">
                       🚩
                     </button>
                   </div>
@@ -306,17 +330,11 @@ export default function FeedPage() {
             <div style={{ display: "flex", gap: 8 }}>
               <input
                 value={commentText[String(p.id)] || ""}
-                onChange={(e) =>
-                  setCommentText((map) => ({ ...map, [String(p.id)]: e.target.value }))
-                }
+                onChange={(e) => setCommentText((map) => ({ ...map, [String(p.id)]: e.target.value }))}
                 placeholder="Add a comment..."
                 style={{ flex: 1 }}
               />
-              <button
-                type="button"
-                onClick={() => onSendComment(p.id)}
-                disabled={busyPostId === p.id}
-              >
+              <button type="button" onClick={() => onSendComment(p.id)} disabled={busyPostId === p.id}>
                 Send
               </button>
             </div>

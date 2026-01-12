@@ -27,31 +27,30 @@ enum ReportStatus {
 }
 
 model User {
-  id               Int              @id @default(autoincrement())
-  email            String           @unique
-  password         String
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  username         String?          @unique
-  avatarUrl        String           @default("")
-  bio              String           @default("")
-  location         String           @default("")
-  links            Json?
+  username  String? @unique
+  avatarUrl String  @default("")
+  bio       String  @default("")
+  location  String  @default("")
+  links     Json?
 
-  followers        Int              @default(0)
-  following        Int              @default(0)
+  followers Int @default(0)
+  following Int @default(0)
 
-  // можно оставить, не мешает (но теперь реальное портфолио = Posts)
-  portfolioVideos  String[]         @default([])
+  portfolioVideos String[] @default([])
 
-  pricePerHour     Int?
-  role             Role             @default(CLIENT)
-  specialization   String[]         @default([])
-  latitude         Float?
-  longitude        Float?
+  pricePerHour   Int?
+  role           Role     @default(CLIENT)
+  specialization String[] @default([])
+  latitude       Float?
+  longitude      Float?
 
-  bannedUntil      DateTime?
+  bannedUntil DateTime?
 
   // relations
   availabilities   Availability[]
@@ -64,40 +63,45 @@ model User {
   likes            Like[]
   comments         Comment[]
 
-  clientReviews    Review[]         @relation("ClientReviews")
-  providerReviews  Review[]         @relation("ProviderReviews")
+  clientReviews   Review[] @relation("ClientReviews")
+  providerReviews Review[] @relation("ProviderReviews")
 
-  // можно оставить, но теперь не используем (если захочешь — потом удалим миграцией)
-  portfolioItems   PortfolioItem[]
+  portfolioItems PortfolioItem[]
 
-  announcements    Announcement[]
-  adminLogs        AdminLog[]
+  announcements Announcement[]
+  adminLogs     AdminLog[]
 
-  warnings         Warning[]        @relation("WarningUser")
-  warningsGiven    Warning[]        @relation("WarningAdmin")
+  warnings      Warning[] @relation("WarningUser")
+  warningsGiven Warning[] @relation("WarningAdmin")
 
-  reportsMade      Report[]         @relation("ReportReporter")
-  reportsHandled   Report[]         @relation("ReportHandledBy")
-  reportsAgainst   Report[]         @relation("ReportTargetUser")
+  reportsMade    Report[] @relation("ReportReporter")
+  reportsHandled Report[] @relation("ReportHandledBy")
+  reportsAgainst Report[] @relation("ReportTargetUser")
+
+  // ✅ Notifications (ВАЖНО: имена relation должны совпадать с Notification)
+  notifications     Notification[] @relation("UserNotifications")
+  notificationsFrom Notification[] @relation("UserNotificationsFrom")
 }
 
 model Post {
-  id        Int       @id @default(autoincrement())
-  authorId  Int
+  id       Int @id @default(autoincrement())
+  authorId Int
 
-  // ✅ теперь: либо imageUrl, либо videoUrl
-  imageUrl  String    @default("")
-  videoUrl  String?
+  imageUrl String  @default("")
+  videoUrl String?
 
-  caption   String    @default("")
-  location  String    @default("")
-  createdAt DateTime  @default(now())
+  caption   String   @default("")
+  location  String   @default("")
+  createdAt DateTime @default(now())
 
-  author    User      @relation(fields: [authorId], references: [id])
-  likes     Like[]
-  comments  Comment[]
+  author   User      @relation(fields: [authorId], references: [id])
+  likes    Like[]
+  comments Comment[]
 
-  reports   Report[]  @relation("ReportPost")
+  reports Report[] @relation("ReportPost")
+
+  // ✅ notifications about this post
+  notifications Notification[]
 
   @@index([authorId])
   @@index([createdAt])
@@ -129,6 +133,9 @@ model Comment {
 
   reports Report[] @relation("ReportComment")
 
+  // ✅ notifications about this comment
+  notifications Notification[]
+
   @@index([postId, createdAt])
   @@index([authorId])
 }
@@ -155,7 +162,7 @@ model Availability {
   isBooked   Boolean  @default(false)
   createdAt  DateTime @default(now())
 
-  provider   User     @relation(fields: [providerId], references: [id])
+  provider User @relation(fields: [providerId], references: [id])
 
   @@index([providerId, startsAt])
   @@index([isBooked])
@@ -170,8 +177,8 @@ model Booking {
   note            String?
   durationMinutes Int      @default(60)
 
-  client       User   @relation("ClientBookings", fields: [clientId], references: [id])
-  videographer User   @relation("ProviderBookings", fields: [videographerId], references: [id])
+  client       User @relation("ClientBookings", fields: [clientId], references: [id])
+  videographer User @relation("ProviderBookings", fields: [videographerId], references: [id])
 
   review Review?
 
@@ -187,7 +194,7 @@ model Unavailability {
   reason     String?
   createdAt  DateTime @default(now())
 
-  provider   User     @relation(fields: [providerId], references: [id])
+  provider User @relation(fields: [providerId], references: [id])
 
   @@index([providerId, startsAt])
   @@index([startsAt, endsAt])
@@ -245,8 +252,8 @@ model Report {
   createdAt DateTime     @default(now())
   status    ReportStatus @default(OPEN)
 
-  reason    String
-  message   String?
+  reason  String
+  message String?
 
   targetType   ReportTargetType
   postId       Int?
@@ -254,13 +261,13 @@ model Report {
   targetUserId Int?
 
   reporterId Int
-  reporter   User  @relation("ReportReporter", fields: [reporterId], references: [id])
+  reporter   User @relation("ReportReporter", fields: [reporterId], references: [id])
 
   handledById Int?
   handledBy   User? @relation("ReportHandledBy", fields: [handledById], references: [id])
 
-  post      Post?     @relation("ReportPost", fields: [postId], references: [id])
-  comment   Comment?  @relation("ReportComment", fields: [commentId], references: [id])
+  post       Post?    @relation("ReportPost", fields: [postId], references: [id])
+  comment    Comment? @relation("ReportComment", fields: [commentId], references: [id])
   targetUser User?    @relation("ReportTargetUser", fields: [targetUserId], references: [id])
 
   @@index([status, createdAt])
@@ -298,11 +305,42 @@ model PortfolioItem {
   order       Int           @default(0)
   createdAt   DateTime      @default(now())
 
-  provider    User          @relation(fields: [providerId], references: [id])
+  provider User @relation(fields: [providerId], references: [id])
 
   @@index([providerId, order])
   @@index([providerId, createdAt])
 }
 
+enum NotificationType {
+  FOLLOW
+  LIKE
+  COMMENT
+  SYSTEM
+}
 
+model Notification {
+  id         Int              @id @default(autoincrement())
+  userId     Int
+  fromUserId Int?
+  type       NotificationType
 
+  postId    Int?
+  commentId Int?
+
+  message   String   @default("")
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // ✅ эти relation names должны совпадать с полями в User
+  user     User  @relation("UserNotifications", fields: [userId], references: [id])
+  fromUser User? @relation("UserNotificationsFrom", fields: [fromUserId], references: [id])
+
+  post    Post?    @relation(fields: [postId], references: [id])
+  comment Comment? @relation(fields: [commentId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([isRead])
+  @@index([fromUserId])
+  @@index([postId])
+  @@index([commentId])
+}

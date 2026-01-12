@@ -95,6 +95,7 @@ async function auth(req, res, next) {
   }
 }
 
+
 async function adminOnly(req, res, next) {
   try {
     const me = await prisma.user.findUnique({
@@ -117,6 +118,54 @@ function safeInt(x) {
   const n = Number(x);
   return Number.isFinite(n) ? n : null;
 }
+
+
+app.get("/api/notifications", auth, async (req, res) => {
+  try {
+    const items = await prisma.notification.findMany({
+      where: { userId: req.userId },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+      include: {
+        fromUser: {
+          select: { id: true, username: true, avatarUrl: true },
+        },
+        post: {
+          select: { id: true, imageUrl: true, videoUrl: true },
+        },
+        comment: {
+          select: { id: true, text: true },
+        },
+      },
+    });
+
+    res.json({ notifications: items });
+  } catch (e) {
+    console.error("GET /api/notifications", e);
+    res.status(500).json({ error: "Failed to load notifications" });
+  }
+});
+
+
+
+
+app.patch("/api/notifications/:id/read", auth, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const n = await prisma.notification.findUnique({ where: { id }, select: { userId: true } });
+    if (!n) return res.status(404).json({ error: "Not found" });
+    if (n.userId !== req.userId) return res.status(403).json({ error: "Forbidden" });
+
+    const updated = await prisma.notification.update({ where: { id }, data: { isRead: true } });
+    res.json({ notification: updated });
+  } catch (e) {
+    console.error("PATCH /api/notifications/:id/read", e);
+    res.status(500).json({ error: "Failed" });
+  }
+});
+
+
+
 
 /* ------------------- AUTH ---------------------- */
 app.post("/api/auth/register", async (req, res) => {
@@ -598,7 +647,10 @@ app.post("/api/posts/:id/like", auth, async (req, res) => {
     const postId = Number(req.params.id);
     if (!postId || Number.isNaN(postId)) return res.status(400).json({ error: "Invalid post id" });
 
-    const post = await prisma.post.findUnique({ where: { id: postId }, select: { id: true } });
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      select: { id: true, authorId: true },
+    });
     if (!post) return res.status(404).json({ error: "Post not found" });
 
     const existing = await prisma.like.findUnique({
@@ -611,6 +663,20 @@ app.post("/api/posts/:id/like", auth, async (req, res) => {
       return res.json({ liked: false, count });
     } else {
       await prisma.like.create({ data: { userId: req.userId, postId } });
+
+      // ✅ notify owner (not self)
+      if (post.authorId !== req.userId) {
+        await prisma.notification.create({
+          data: {
+            userId: post.authorId,
+            fromUserId: req.userId,
+            type: "LIKE",
+            postId: post.id,
+            message: "liked your post",
+          },
+        });
+      }
+
       const count = await prisma.like.count({ where: { postId } });
       return res.json({ liked: true, count });
     }
@@ -619,6 +685,7 @@ app.post("/api/posts/:id/like", auth, async (req, res) => {
     res.status(500).json({ error: "Like failed" });
   }
 });
+
 
 /* ------------------ COMMENTS ------------------- */
 app.get("/api/posts/:id/comments", async (req, res) => {
@@ -653,7 +720,10 @@ app.post("/api/posts/:id/comments", auth, async (req, res) => {
     if (!postId || Number.isNaN(postId)) return res.status(400).json({ error: "Invalid post id" });
     if (!text || !String(text).trim()) return res.status(400).json({ error: "Text required" });
 
-    const post = await prisma.post.findUnique({ where: { id: postId }, select: { id: true } });
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      select: { id: true, authorId: true },
+    });
     if (!post) return res.status(404).json({ error: "Post not found" });
 
     const c = await prisma.comment.create({
@@ -666,6 +736,19 @@ app.post("/api/posts/:id/comments", auth, async (req, res) => {
       },
     });
 
+    if (post.authorId !== req.userId) {
+      await prisma.notification.create({
+        data: {
+          userId: post.authorId,
+          fromUserId: req.userId,
+          type: "COMMENT",
+          postId: post.id,
+          commentId: c.id,
+          message: String(c.text || "").trim(),
+        },
+      });
+    }
+
     const count = await prisma.comment.count({ where: { postId } });
     res.status(201).json({ comment: c, count });
   } catch (e) {
@@ -673,6 +756,10 @@ app.post("/api/posts/:id/comments", auth, async (req, res) => {
     res.status(500).json({ error: "Create comment failed" });
   }
 });
+
+
+    
+
 
 app.delete("/api/comments/:id", auth, async (req, res) => {
   try {
@@ -878,7 +965,8 @@ app.post("/api/bookings", auth, async (req, res) => {
   try {
     const { videographerId, date, start, end, note } = req.body;
     const pid = safeInt(videographerId);
-    if (!pid) return res.status(400).json({ error: "videographerId required" });
+    // if (!pid) return res.status(400).json({ error: "videographerId required" });
+    if (pid === req.userId) return res.status(400).json({ error: "You cannot book yourself" });
 
     const provider = await prisma.user.findUnique({
       where: { id: pid },
@@ -1375,12 +1463,36 @@ app.get("/api/admin/posts", auth, adminOnly, async (req, res) => {
   }
 });
 
+// ✅ FIX: delete post without FK errors (transaction)
 app.delete("/api/admin/posts/:id", auth, adminOnly, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!id || Number.isNaN(id)) return res.status(400).json({ error: "Invalid post id" });
 
-    await prisma.post.delete({ where: { id } });
+    await prisma.$transaction(async (tx) => {
+      // notifications linked to post
+      await tx.notification.deleteMany({ where: { postId: id } });
+
+      // reports linked to post
+      await tx.report.deleteMany({ where: { postId: id } });
+
+      // find comment ids
+      const comments = await tx.comment.findMany({
+        where: { postId: id },
+        select: { id: true },
+      });
+      const cids = comments.map((c) => c.id);
+
+      if (cids.length) {
+        await tx.notification.deleteMany({ where: { commentId: { in: cids } } });
+        await tx.report.deleteMany({ where: { commentId: { in: cids } } });
+      }
+
+      await tx.comment.deleteMany({ where: { postId: id } });
+      await tx.like.deleteMany({ where: { postId: id } });
+
+      await tx.post.delete({ where: { id } });
+    });
 
     await prisma.adminLog.create({
       data: { adminId: req.userId, action: "POST_DELETE", entity: "Post", entityId: id },
@@ -1408,7 +1520,13 @@ app.post("/api/admin/users/:id/ban", auth, adminOnly, async (req, res) => {
     });
 
     await prisma.adminLog.create({
-      data: { adminId: req.userId, action: "USER_BAN", entity: "User", entityId: uid, meta: { days, until } },
+      data: {
+        adminId: req.userId,
+        action: "USER_BAN",
+        entity: "User",
+        entityId: uid,
+        meta: { days, until },
+      },
     });
 
     res.json({ user });
@@ -1430,7 +1548,13 @@ app.post("/api/admin/users/:id/warn", auth, adminOnly, async (req, res) => {
     });
 
     await prisma.adminLog.create({
-      data: { adminId: req.userId, action: "USER_WARN", entity: "User", entityId: uid, meta: { warningId: warning.id } },
+      data: {
+        adminId: req.userId,
+        action: "USER_WARN",
+        entity: "User",
+        entityId: uid,
+        meta: { warningId: warning.id },
+      },
     });
 
     res.json({ ok: true });

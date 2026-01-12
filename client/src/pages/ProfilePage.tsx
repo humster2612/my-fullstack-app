@@ -1,5 +1,4 @@
-// client/src/pages/ProfilePage.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import Avatar from "../Avatar";
 import {
@@ -9,8 +8,13 @@ import {
   followUser,
   unfollowUser,
   getUserPosts,
-  createBooking,
   getProviderReviews,
+
+  // ✅ NEW
+  getUserPortfolio,
+  createPortfolioItem,
+  deletePortfolioItem,
+  type ProviderPortfolioItem,
 } from "../api";
 
 type PublicUser = {
@@ -27,13 +31,19 @@ type PublicUser = {
 
   specialization?: string[];
   pricePerHour?: number | null;
+
+  // legacy
   portfolioVideos?: string[];
+
+  // ✅ NEW
+  providerPortfolio?: ProviderPortfolioItem[];
 };
 
 type Post = {
   id: number | string;
   imageUrl?: string;
-  videoUrl?: string;
+  // ✅ FIX: разрешаем null (потому что API возвращает null)
+  videoUrl?: string | null;
   caption: string;
   location: string;
   createdAt: string;
@@ -53,6 +63,80 @@ type ReviewsPayload = {
   count: number;
 };
 
+function isProviderRole(role?: string) {
+  return role === "VIDEOGRAPHER" || role === "PHOTOGRAPHER";
+}
+
+function isValidHttpUrl(url: string) {
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+// YouTube/Vimeo -> embed
+function toEmbedUrl(url: string) {
+  const u = url.trim();
+
+  // YouTube
+  const yt1 = u.match(/youtube\.com\/watch\?v=([^&]+)/i);
+  const yt2 = u.match(/youtu\.be\/([^?&]+)/i);
+  const yt3 = u.match(/youtube\.com\/shorts\/([^?&]+)/i);
+  const ytId = yt1?.[1] || yt2?.[1] || yt3?.[1];
+  if (ytId) return `https://www.youtube.com/embed/${ytId}`;
+
+  // Vimeo
+  const vimeo = u.match(/vimeo\.com\/(\d+)/i);
+  if (vimeo?.[1]) return `https://player.vimeo.com/video/${vimeo[1]}`;
+
+  return null;
+}
+
+function PortfolioCard({ item }: { item: ProviderPortfolioItem }) {
+  const embed = useMemo(() => (item.kind === "VIDEO" ? toEmbedUrl(item.url) : null), [item]);
+
+  return (
+    <div style={{ border: "1px solid #333", borderRadius: 12, overflow: "hidden" }}>
+      <div style={{ background: "rgba(255,255,255,0.03)" }}>
+        {item.kind === "IMAGE" ? (
+          <img
+            src={item.thumbUrl || item.url}
+            alt={item.title || "portfolio"}
+            style={{ width: "100%", display: "block", aspectRatio: "16/9", objectFit: "cover" }}
+          />
+        ) : item.kind === "VIDEO" && embed ? (
+          <iframe
+            src={embed}
+            title={item.title || "video"}
+            style={{ width: "100%", aspectRatio: "16/9", border: 0, display: "block" }}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        ) : (
+          <div style={{ padding: 12 }}>
+            <a href={item.url} target="_blank" rel="noreferrer">
+              {item.url}
+            </a>
+          </div>
+        )}
+      </div>
+
+      <div style={{ padding: 10, display: "grid", gap: 6 }}>
+        {item.title ? <div style={{ fontWeight: 700 }}>{item.title}</div> : null}
+        {item.description ? (
+          <div style={{ opacity: 0.85, whiteSpace: "pre-wrap" }}>{item.description}</div>
+        ) : null}
+        <div style={{ display: "flex", gap: 10, opacity: 0.8, fontSize: 12 }}>
+          <span>{item.kind}</span>
+          {typeof item.order === "number" ? <span>Order: {item.order}</span> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const { username } = useParams();
   const [user, setUser] = useState<PublicUser | null>(null);
@@ -69,20 +153,29 @@ export default function ProfilePage() {
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsErr, setReviewsErr] = useState<string | null>(null);
 
-  // helpers
+  // ✅ ProviderPortfolio state
+  const [portfolio, setPortfolio] = useState<ProviderPortfolioItem[] | null>(null);
+  const [portfolioLoading, setPortfolioLoading] = useState(false);
+  const [portfolioErr, setPortfolioErr] = useState<string | null>(null);
+
+  // ✅ Add form (only for provider + my profile)
+  const [ppKind, setPpKind] = useState<"IMAGE" | "VIDEO" | "LINK">("VIDEO");
+  const [ppTitle, setPpTitle] = useState("");
+  const [ppUrl, setPpUrl] = useState("");
+  const [ppThumb, setPpThumb] = useState("");
+  const [ppDesc, setPpDesc] = useState("");
+  const [ppOrder, setPpOrder] = useState<number>(0);
+  const [ppBusy, setPpBusy] = useState(false);
+
   function formatDate(iso: string) {
     const d = new Date(iso);
     return Number.isNaN(d.getTime())
       ? iso
-      : d.toLocaleDateString(undefined, {
-          year: "numeric",
-          month: "short",
-          day: "2-digit",
-        });
+      : d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "2-digit" });
   }
 
   function Stars({ value }: { value: number }) {
-    const full = Math.round(value); // если хочешь строже — замени на Math.floor(value)
+    const full = Math.round(value);
     const safe = Math.max(0, Math.min(5, full));
     return (
       <span aria-label={`rating ${value}`}>
@@ -96,9 +189,12 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!username) return;
     (async () => {
+      setLoading(true);
+      setErr(null);
       try {
         const res = await getUserByUsername(username);
         setUser(res.user);
+
         const postsRes = await getUserPosts(username);
         setPosts(postsRes.posts);
       } catch (e: any) {
@@ -142,8 +238,7 @@ export default function ProfilePage() {
       setReviewsErr(null);
       setReviewsData(null);
 
-      // отзывы нужны только для провайдера
-      if (!(user?.role === "VIDEOGRAPHER" || user?.role === "PHOTOGRAPHER")) return;
+      if (!isProviderRole(user?.role)) return;
 
       try {
         setReviewsLoading(true);
@@ -153,6 +248,28 @@ export default function ProfilePage() {
         setReviewsErr(e?.response?.data?.error || "Failed to load reviews");
       } finally {
         setReviewsLoading(false);
+      }
+    })();
+  }, [username, user?.role]);
+
+  // ✅ ProviderPortfolio (public)
+  useEffect(() => {
+    if (!username) return;
+
+    (async () => {
+      setPortfolioErr(null);
+      setPortfolio(null);
+
+      if (!isProviderRole(user?.role)) return;
+
+      try {
+        setPortfolioLoading(true);
+        const data = await getUserPortfolio(username);
+        setPortfolio(data.items);
+      } catch (e: any) {
+        setPortfolioErr(e?.response?.data?.error || "Failed to load portfolio");
+      } finally {
+        setPortfolioLoading(false);
       }
     })();
   }, [username, user?.role]);
@@ -177,13 +294,69 @@ export default function ProfilePage() {
     try {
       await unfollowUser(user.id);
       setIsFollowing(false);
-      setUser((u) =>
-        u ? { ...u, followers: Math.max(0, (u.followers ?? 0) - 1) } : u
-      );
+      setUser((u) => (u ? { ...u, followers: Math.max(0, (u.followers ?? 0) - 1) } : u));
     } catch (e: any) {
       alert(e?.response?.data?.error || "Unfollow failed");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function addPortfolioItem() {
+    if (!user) return;
+    if (!isProviderRole(user.role)) return;
+
+    const url = ppUrl.trim();
+    const thumb = ppThumb.trim();
+
+    if (!url || !isValidHttpUrl(url)) {
+      alert("Please provide a valid http(s) URL");
+      return;
+    }
+    if (thumb && !isValidHttpUrl(thumb)) {
+      alert("Thumb URL must be http(s)");
+      return;
+    }
+
+    setPpBusy(true);
+    try {
+      const created = await createPortfolioItem({
+        kind: ppKind,
+        title: ppTitle.trim() || undefined,
+        url,
+        thumbUrl: thumb || undefined,
+        description: ppDesc.trim() || undefined,
+        order: Number.isFinite(ppOrder) ? ppOrder : 0,
+      });
+
+      setPortfolio((prev) => {
+        const next = [...(prev || []), created.item];
+        next.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        return next;
+      });
+
+      setPpTitle("");
+      setPpUrl("");
+      setPpThumb("");
+      setPpDesc("");
+      setPpOrder(0);
+    } catch (e: any) {
+      alert(e?.response?.data?.error || "Failed to add portfolio item");
+    } finally {
+      setPpBusy(false);
+    }
+  }
+
+  async function removePortfolioItem(id: number) {
+    if (!confirm("Delete this portfolio item?")) return;
+    setPpBusy(true);
+    try {
+      await deletePortfolioItem(id);
+      setPortfolio((prev) => (prev || []).filter((x) => x.id !== id));
+    } catch (e: any) {
+      alert(e?.response?.data?.error || "Delete failed");
+    } finally {
+      setPpBusy(false);
     }
   }
 
@@ -192,8 +365,7 @@ export default function ProfilePage() {
   if (!user) return null;
 
   const isMe = meId && user && meId === user.id;
-  const isProvider = user.role === "VIDEOGRAPHER" || user.role === "PHOTOGRAPHER";
-  const canBook = !isMe && !!meId && !!meUsername && isProvider;
+  const isProvider = isProviderRole(user.role);
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -212,7 +384,8 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {!isMe && meId &&
+        {!isMe &&
+          meId &&
           (isFollowing ? (
             <button disabled={busy} onClick={onUnfollow}>
               Unfollow
@@ -230,9 +403,6 @@ export default function ProfilePage() {
           {isMe && <Link to="/schedule">Open my schedule</Link>}
         </div>
       )}
-
-      {/* Кнопка бронирования — только если это провайдер и это не мой профиль */}
-      {/* {canBook && <BookForm providerId={user.id} />} */}
 
       {user.bio && <p>{user.bio}</p>}
 
@@ -269,7 +439,7 @@ export default function ProfilePage() {
 
           {user.portfolioVideos?.length ? (
             <div>
-              <b>Portfolio:</b>
+              <b>Legacy Portfolio (portfolioVideos):</b>
               <ul>
                 {user.portfolioVideos.map((v, i) => (
                   <li key={i}>
@@ -284,7 +454,95 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* ✅ REVIEWS BLOCK */}
+      {isProvider && (
+        <section style={{ border: "1px solid #333", borderRadius: 12, padding: 12 }}>
+          <h3 style={{ marginTop: 0 }}>Portfolio</h3>
+
+          {isMe && (
+            <div style={{ border: "1px solid #333", borderRadius: 12, padding: 12, marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, marginBottom: 8 }}>Add portfolio item</div>
+
+              <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <label>
+                    Kind{" "}
+                    <select value={ppKind} onChange={(e) => setPpKind(e.target.value as any)}>
+                      <option value="VIDEO">VIDEO</option>
+                      <option value="IMAGE">IMAGE</option>
+                      <option value="LINK">LINK</option>
+                    </select>
+                  </label>
+
+                  <label>
+                    Order{" "}
+                    <input
+                      type="number"
+                      value={ppOrder}
+                      onChange={(e) => setPpOrder(Number(e.target.value))}
+                      style={{ width: 90 }}
+                    />
+                  </label>
+                </div>
+
+                <input placeholder="Title (optional)" value={ppTitle} onChange={(e) => setPpTitle(e.target.value)} />
+                <input placeholder="URL (required) https://..." value={ppUrl} onChange={(e) => setPpUrl(e.target.value)} />
+                <input
+                  placeholder="Thumb URL (optional) https://..."
+                  value={ppThumb}
+                  onChange={(e) => setPpThumb(e.target.value)}
+                />
+                <textarea
+                  placeholder="Description (optional)"
+                  value={ppDesc}
+                  onChange={(e) => setPpDesc(e.target.value)}
+                  rows={3}
+                />
+
+                <button disabled={ppBusy} onClick={addPortfolioItem}>
+                  {ppBusy ? "Saving..." : "Add"}
+                </button>
+                <div style={{ opacity: 0.7, fontSize: 12 }}>
+                  Tip: VIDEO supports YouTube / Vimeo embeds. IMAGE uses thumbUrl or url as image.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {portfolioLoading ? (
+            <div>Loading portfolio...</div>
+          ) : portfolioErr ? (
+            <div style={{ color: "crimson" }}>{portfolioErr}</div>
+          ) : portfolio && portfolio.length ? (
+            <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+              {portfolio.map((it) => (
+                <div key={it.id} style={{ position: "relative" }}>
+                  <PortfolioCard item={it} />
+                  {isMe && (
+                    <button
+                      disabled={ppBusy}
+                      onClick={() => removePortfolioItem(it.id)}
+                      style={{
+                        position: "absolute",
+                        top: 10,
+                        right: 10,
+                        padding: "6px 10px",
+                        borderRadius: 10,
+                        border: "1px solid #333",
+                        background: "rgba(0,0,0,0.6)",
+                      }}
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ opacity: 0.8 }}>No portfolio items yet</div>
+          )}
+        </section>
+      )}
+
       {isProvider && (
         <section style={{ border: "1px solid #333", borderRadius: 12, padding: 12 }}>
           <h3 style={{ marginTop: 0 }}>Reviews</h3>
@@ -299,8 +557,7 @@ export default function ProfilePage() {
                 <div style={{ fontSize: 18 }}>
                   <b>{reviewsData.avgRating.toFixed(1)}</b>/5{" "}
                   <span style={{ opacity: 0.8 }}>
-                    (<b>{reviewsData.count}</b>{" "}
-                    {reviewsData.count === 1 ? "review" : "reviews"})
+                    (<b>{reviewsData.count}</b> {reviewsData.count === 1 ? "review" : "reviews"})
                   </span>
                 </div>
                 <div style={{ fontSize: 18 }}>
@@ -327,8 +584,7 @@ export default function ProfilePage() {
                           <div style={{ opacity: 0.7, fontSize: 12 }}>{formatDate(r.createdAt)}</div>
                         </div>
                         <div style={{ fontSize: 16 }}>
-                          <Stars value={r.rating} />{" "}
-                          <span style={{ opacity: 0.8 }}>{r.rating}/5</span>
+                          <Stars value={r.rating} /> <span style={{ opacity: 0.8 }}>{r.rating}/5</span>
                         </div>
                       </div>
 
@@ -358,10 +614,7 @@ export default function ProfilePage() {
       ) : posts.length ? (
         <div style={{ display: "grid", gap: 12 }}>
           {posts.map((p) => (
-            <div
-              key={p.id}
-              style={{ border: "1px solid #333", borderRadius: 12, overflow: "hidden" }}
-            >
+            <div key={p.id} style={{ border: "1px solid #333", borderRadius: 12, overflow: "hidden" }}>
               {p.videoUrl ? (
                 <video src={p.videoUrl} controls style={{ width: "100%", display: "block" }} />
               ) : (
@@ -391,55 +644,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-/* ---------- Форма бронирования ---------- */
-// function BookForm({ providerId }: { providerId: number | string }) {
-//   const [date, setDate] = useState<string>("");
-//   const [note, setNote] = useState<string>("");
-//   const [ok, setOk] = useState<string | null>(null);
-//   const [err, setErr] = useState<string | null>(null);
-//   const [loading, setLoading] = useState(false);
-
-//   const submit = async (e: React.FormEvent) => {
-//     e.preventDefault();
-//     setErr(null);
-//     setOk(null);
-//     if (!date) {
-//       setErr("Выберите дату");
-//       return;
-//     }
-//     try {
-//       setLoading(true);
-//       await createBooking(providerId, new Date(date).toISOString(), note);
-//       setOk("Запрос отправлен!");
-//       setDate("");
-//       setNote("");
-//     } catch (e: any) {
-//       setErr(e?.response?.data?.error || "Ошибка бронирования");
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   return (
-//     <form
-//       onSubmit={submit}
-//       style={{ display: "grid", gap: 8, maxWidth: 360, margin: "12px 0" }}
-//     >
-//       <h3>Book session</h3>
-//       <input
-//         type="datetime-local"
-//         value={date}
-//         onChange={(e) => setDate(e.target.value)}
-//       />
-//       <input
-//         placeholder="Note (optional)"
-//         value={note}
-//         onChange={(e) => setNote(e.target.value)}
-//       />
-//       <button disabled={loading}>{loading ? "Sending..." : "Send request"}</button>
-//       {ok && <div style={{ color: "limegreen" }}>{ok}</div>}
-//       {err && <div style={{ color: "crimson" }}>{err}</div>}
-//     </form>
-//   );
-// }
