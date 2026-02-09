@@ -233,9 +233,11 @@ export default function ProviderSchedulePage() {
     try {
       await updateBooking(id, action);
       await Promise.all([loadRequests(), loadCalendar(me.username)]);
-      if (action === "confirm") setToast("Booking approved ✅");
-      else if (action === "decline") setToast("Booking rejected ❌");
-      else setToast("Marked as done ✅");
+
+      if (action === "confirm") setToast("Booking approved");
+      else if (action === "decline") setToast("Booking rejected");
+      else setToast("Marked as done");
+      
       setTimeout(() => setToast(null), 2500);
     } catch {
       setToast("Failed to update booking");
@@ -414,7 +416,7 @@ export default function ProviderSchedulePage() {
         {!loadingReq && requests.length === 0 && (
           <div style={{ opacity: 0.7 }}>No booking requests yet.</div>
         )}
-        
+
         {requests.map((b) => (
           <div
             key={b.id}

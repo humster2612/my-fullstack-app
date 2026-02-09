@@ -1,0 +1,122 @@
+.authPage {
+    min-height: calc(100vh - 120px); /* чтобы учитывался navbar сверху */
+    display: grid;
+    place-items: center;
+    padding: 32px 16px;
+  }
+  
+  
+  .authCard {
+    width: 100%;
+    max-width: 920px;
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 0;
+    border-radius: 18px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  }
+  
+  .authVisual {
+    padding: 28px;
+    background: radial-gradient(1200px 500px at 10% 20%, rgba(120, 119, 198, 0.35), transparent 50%),
+      radial-gradient(900px 500px at 80% 80%, rgba(56, 189, 248, 0.25), transparent 50%),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
+  }
+  
+  .authVisual h1 {
+    margin: 0;
+    font-size: 34px;
+    letter-spacing: 0.3px;
+  }
+  
+  .authVisual p {
+    margin: 0;
+    opacity: 0.85;
+    line-height: 1.5;
+  }
+  
+  .authForm {
+    padding: 28px;
+    display: grid;
+    gap: 14px;
+  }
+  
+  .authTitle {
+    margin: 0;
+    font-size: 26px;
+  }
+  
+  .authSub {
+    margin: 0 0 6px 0;
+    opacity: 0.8;
+    font-size: 14px;
+  }
+  
+  .field {
+    display: grid;
+    gap: 6px;
+  }
+  
+  .label {
+    font-size: 13px;
+    opacity: 0.85;
+  }
+  
+  .input {
+    height: 44px;
+    padding: 0 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    background: rgba(0, 0, 0, 0.25);
+    color: #fff;
+    outline: none;
+  }
+  
+  .input:focus {
+    border-color: rgba(56, 189, 248, 0.55);
+    box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.10);
+  }
+  
+  .btn {
+    height: 44px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #0b1020;
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.95), rgba(120, 119, 198, 0.95));
+  }
+  
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  .err {
+    color: #ff5a7a;
+    font-size: 14px;
+  }
+  
+  .authLinks {
+    display: flex;
+    gap: 10px;
+    font-size: 14px;
+    opacity: 0.9;
+  }
+  
+  @media (max-width: 820px) {
+    .authCard {
+      grid-template-columns: 1fr;
+    }
+    .authVisual {
+      min-height: 160px;
+    }
+  }
+  

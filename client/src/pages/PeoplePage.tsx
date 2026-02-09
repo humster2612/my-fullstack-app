@@ -3,14 +3,16 @@ import { listUsers, followUser, unfollowUser } from "../api";
 import { Link } from "react-router-dom";
 import Avatar from "../Avatar";
 import WorldProvidersMap from "./WorldProvidersMap";
+import "../styles/people.css";
+
 type Person = {
   id: number | string;
   username: string;
   email: string;
   avatarUrl?: string;
-  followers: number; // сколько подписчиков у него
-  following: number; // на сколько людей он сам подписан
-  isFollowing?: boolean; // <- подписана ли Я на него
+  followers: number;
+  following: number;
+  isFollowing?: boolean;
 };
 
 export default function PeoplePage() {
@@ -24,7 +26,11 @@ export default function PeoplePage() {
   async function load(reset = false) {
     setLoading(true);
     try {
-      const res = await listUsers({ q, limit: 20, cursor: reset ? undefined : cursor || undefined });
+      const res = await listUsers({
+        q,
+        limit: 20,
+        cursor: reset ? undefined : cursor || undefined,
+      });
       setItems(reset ? res.users : [...items, ...res.users]);
       setCursor(res.nextCursor);
     } catch (e: any) {
@@ -34,8 +40,16 @@ export default function PeoplePage() {
     }
   }
 
-  useEffect(() => { load(true); /* eslint-disable-line */ }, []); // first load
-  useEffect(() => { const t = setTimeout(() => load(true), 300); return () => clearTimeout(t); }, [q]); // search debounce
+  useEffect(() => {
+    load(true);
+    // eslint-disable-next-line
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => load(true), 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line
+  }, [q]);
 
   const canLoadMore = useMemo(() => cursor !== null && !loading, [cursor, loading]);
 
@@ -44,14 +58,18 @@ export default function PeoplePage() {
     try {
       if (u.isFollowing) {
         await unfollowUser(u.id);
-        setItems(arr => arr.map(x =>
-          x.id === u.id ? { ...x, isFollowing: false, followers: Math.max(0, x.followers - 1) } : x
-        ));
+        setItems((arr) =>
+          arr.map((x) =>
+            x.id === u.id
+              ? { ...x, isFollowing: false, followers: Math.max(0, x.followers - 1) }
+              : x
+          )
+        );
       } else {
         await followUser(u.id);
-        setItems(arr => arr.map(x =>
-          x.id === u.id ? { ...x, isFollowing: true, followers: x.followers + 1 } : x
-        ));
+        setItems((arr) =>
+          arr.map((x) => (x.id === u.id ? { ...x, isFollowing: true, followers: x.followers + 1 } : x))
+        );
       }
     } catch (e: any) {
       alert(e?.response?.data?.error || "Action failed");
@@ -61,11 +79,29 @@ export default function PeoplePage() {
   }
 
   return (
-    <div style={{ display: "grid", gap: 12 }}>
-        <WorldProvidersMap />
-      <h2>People</h2>
+    <div className="peoplePage">
+      {/* ✅ MAP CARD */}
+      <div className="mapCard">
+        <div className="mapHeader">
+          <div>
+            <h2 className="mapTitle">Explore providers on the map</h2>
+            <div className="mapSub">
+              Drag to move · Use +/- or scroll to zoom · Click pin to open profile
+            </div>
+          </div>
+        </div>
+
+        {/* ✅ fixed viewport so map never “runs away” */}
+        <div className="mapViewport">
+          <WorldProvidersMap />
+        </div>
+      </div>
+
+      {/* ✅ LIST */}
+      <h2 style={{ marginTop: 12 }}>People</h2>
 
       <input
+        className="peopleSearch"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Search by username or email..."
@@ -74,20 +110,28 @@ export default function PeoplePage() {
 
       {err && <div style={{ color: "crimson" }}>{err}</div>}
 
-      {items.map(u => (
-        <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: 8, border: "1px solid #333", borderRadius: 12 }}>
+      <div className="peopleList">
+        {items.map((u) => (
+          <div className="personCard" key={u.id}>
             <Avatar src={u.avatarUrl} size={48} alt={u.username} />
-          <div style={{ flex: 1 }}>
-            <div><b>@{u.username}</b></div>
-            <div style={{ opacity: .7 }}>{u.email}</div>
-            <div style={{ opacity: .8, fontSize: 13 }}>Followers: {u.followers} · Following: {u.following}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700 }}>@{u.username}</div>
+              <div style={{ opacity: 0.7, fontSize: 13 }}>{u.email}</div>
+              <div style={{ opacity: 0.8, fontSize: 13 }}>
+                Followers: {u.followers} · Following: {u.following}
+              </div>
+            </div>
+
+            <Link className="openLink" to={`/profile/${u.username}`}>
+              Open →
+            </Link>
+
+            <button className="followBtn" onClick={() => toggleFollow(u)} disabled={busyId === u.id}>
+              {u.isFollowing ? "Unfollow" : "Follow"}
+            </button>
           </div>
-          <Link to={`/profile/${u.username}`} style={{ marginRight: 8 }}>Open →</Link>
-          <button onClick={() => toggleFollow(u)} disabled={busyId === u.id}>
-            {u.isFollowing ? "Unfollow" : "Follow"}
-          </button>
-        </div>
-      ))}
+        ))}
+      </div>
 
       {canLoadMore && (
         <button onClick={() => load(false)} disabled={loading} style={{ marginTop: 8 }}>

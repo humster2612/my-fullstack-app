@@ -14,6 +14,7 @@ import MyBookingsPage from "./pages/MyBookingsPage";
 import AdminPage from "./pages/AdminPage";
 import NotificationsPage from "./pages/NotificationsPage";
 
+
 import { loginUser, registerUser, getMe } from "./api";
 
 type User = {
@@ -60,7 +61,9 @@ function App() {
 
   return (
     <BrowserRouter>
-      <div style={{ maxWidth: 720, margin: "40px auto", padding: 16 }}>
+    <div style={{ maxWidth: 1200, margin: "32px auto", padding: 16 }}>
+
+
         <nav
           style={{
             display: "flex",
@@ -149,6 +152,7 @@ function App() {
 }
 
 /* ====== Auth forms ====== */
+/* ====== Auth forms ====== */
 function Login({ onLoggedIn }: { onLoggedIn: (u: User | null) => void }) {
   const nav = useNavigate();
   const [email, setEmail] = useState<string>("");
@@ -185,39 +189,62 @@ function Login({ onLoggedIn }: { onLoggedIn: (u: User | null) => void }) {
   };
 
   return (
-    <form
-      onSubmit={submit}
-      autoComplete="off"
-      style={{ display: "grid", gap: 12, maxWidth: 420 }}
-    >
-      <h2>Login</h2>
+    <div className="authPage">
+      <div className="authCard">
+        <div className="authVisual">
+          <h1>Welcome back</h1>
+          <p>Login to access your feed, bookings, portfolio and notifications.</p>
+          <p style={{ opacity: 0.7, fontSize: 13 }}>
+            Tip: use a strong password and keep your profile updated ✨
+          </p>
+        </div>
 
-      <input
-        type="email"
-        name="login_email_manual"
-        inputMode="email"
-        autoComplete="off"
-        placeholder="Введите email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-      />
+        <form onSubmit={submit} autoComplete="off" className="authForm">
+          <h2 className="authTitle">Login</h2>
+          <p className="authSub">Enter your email and password to continue</p>
 
-      <input
-        type="password"
-        name="login_pass_manual"
-        autoComplete="new-password"
-        placeholder="Введите пароль"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        required
-      />
+          <div className="field">
+            <div className="label">Email</div>
+            <input
+              className="input"
+              type="email"
+              name="login_email_manual"
+              inputMode="email"
+              autoComplete="off"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
 
-      <button disabled={loading} type="submit">
-        {loading ? "Входим..." : "Войти"}
-      </button>
-      {err && <div style={{ color: "crimson" }}>{err}</div>}
-    </form>
+          <div className="field">
+            <div className="label">Password</div>
+            <input
+              className="input"
+              type="password"
+              name="login_pass_manual"
+              autoComplete="new-password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          <button className="btn" disabled={loading} type="submit">
+            {loading ? "Signing in..." : "Sign in"}
+          </button>
+
+          {err && <div className="err">{err}</div>}
+
+          <div className="authLinks">
+            <span>No account?</span>
+            <Link to="/register">Create one</Link>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 
@@ -260,49 +287,79 @@ function Register({ onRegistered }: { onRegistered: (u: User | null) => void }) 
   };
 
   return (
-    <form
-      onSubmit={submit}
-      autoComplete="off"
-      style={{ display: "grid", gap: 12, maxWidth: 420 }}
-    >
-      <h2>Register</h2>
+    <div className="authPage">
+      <div className="authCard">
+        <div className="authVisual">
+          <h1>Create account</h1>
+          <p>Join the platform to post content, follow creators and book providers.</p>
+          <p style={{ opacity: 0.7, fontSize: 13 }}>
+            You can set avatar, bio and location later in Settings.
+          </p>
+        </div>
 
-      <input
-        type="text"
-        name="register_username_manual"
-        autoComplete="off"
-        placeholder="Имя пользователя (опционально)"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-      />
+        <form onSubmit={submit} autoComplete="off" className="authForm">
+          <h2 className="authTitle">Register</h2>
+          <p className="authSub">Fill the fields below to create an account</p>
 
-      <input
-        type="email"
-        name="register_email_manual"
-        inputMode="email"
-        autoComplete="off"
-        placeholder="Введите email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-      />
+          <div className="field">
+            <div className="label">Username (optional)</div>
+            <input
+              className="input"
+              type="text"
+              name="register_username_manual"
+              autoComplete="off"
+              placeholder="yourname"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+          </div>
 
-      <input
-        type="password"
-        name="register_pass_manual"
-        autoComplete="new-password"
-        placeholder="Придумайте пароль"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        required
-      />
+          <div className="field">
+            <div className="label">Email</div>
+            <input
+              className="input"
+              type="email"
+              name="register_email_manual"
+              inputMode="email"
+              autoComplete="off"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
 
-      <button disabled={loading} type="submit">
-        {loading ? "Создаём..." : "Зарегистрироваться"}
-      </button>
-      {err && <div style={{ color: "crimson" }}>{err}</div>}
-    </form>
+          <div className="field">
+            <div className="label">Password</div>
+            <input
+              className="input"
+              type="password"
+              name="register_pass_manual"
+              autoComplete="new-password"
+              placeholder="Create a password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          <button className="btn" disabled={loading} type="submit">
+            {loading ? "Creating..." : "Create account"}
+          </button>
+
+          {err && <div className="err">{err}</div>}
+
+          <div className="authLinks">
+            <span>Already have an account?</span>
+            <Link to="/login">Login</Link>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 
 export default App;
+
+
+

@@ -8,6 +8,7 @@ const jwt = require("jsonwebtoken");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
+const { isProviderRole, safeInt, resolveNextBookingStatus } = require("./utils/bookingUtils");
 
 const prisma = new PrismaClient();
 const app = express();
@@ -110,14 +111,14 @@ async function adminOnly(req, res, next) {
   }
 }
 
-function isProviderRole(role) {
-  return role === "VIDEOGRAPHER" || role === "PHOTOGRAPHER";
-}
+// function isProviderRole(role) {
+//   return role === "VIDEOGRAPHER" || role === "PHOTOGRAPHER";
+// }
 
-function safeInt(x) {
-  const n = Number(x);
-  return Number.isFinite(n) ? n : null;
-}
+// function safeInt(x) {
+//   const n = Number(x);
+//   return Number.isFinite(n) ? n : null;
+// }
 
 
 app.get("/api/notifications", auth, async (req, res) => {
@@ -965,7 +966,7 @@ app.post("/api/bookings", auth, async (req, res) => {
   try {
     const { videographerId, date, start, end, note } = req.body;
     const pid = safeInt(videographerId);
-    // if (!pid) return res.status(400).json({ error: "videographerId required" });
+
     if (pid === req.userId) return res.status(400).json({ error: "You cannot book yourself" });
 
     const provider = await prisma.user.findUnique({
@@ -981,7 +982,7 @@ app.post("/api/bookings", auth, async (req, res) => {
     if (start && end) {
       const s = new Date(start);
       const e = new Date(end);
-      if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return res.status(400).json({ error: "Invalid start/end" });
+      if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return res.status(400).json({ error: "Invalid start end" });
       const diff = Math.max(1, Math.round((e.getTime() - s.getTime()) / 60000));
       durationMinutes = diff;
       dateISO = s;
@@ -990,7 +991,7 @@ app.post("/api/bookings", auth, async (req, res) => {
       if (Number.isNaN(d.getTime())) return res.status(400).json({ error: "Invalid date" });
       dateISO = d;
     } else {
-      return res.status(400).json({ error: "date or (start,end) required" });
+      return res.status(400).json({ error: "date or (start, end) required" });
     }
 
     const booking = await prisma.booking.create({
@@ -1055,21 +1056,24 @@ app.patch("/api/bookings/:id", auth, async (req, res) => {
 
     const b = await prisma.booking.findUnique({
       where: { id },
-      select: { id: true, clientId: true, videographerId: true, status: true, date: true, durationMinutes: true, note: true },
+      select: { 
+        id: true, 
+        clientId: true, 
+        videographerId: true, 
+        status: true, 
+        date: true, 
+        durationMinutes: true, 
+        note: true
+       },
     });
     if (!b) return res.status(404).json({ error: "Booking not found" });
-
     const isClient = b.clientId === req.userId;
     const isProvider = b.videographerId === req.userId;
     if (!isClient && !isProvider) return res.status(403).json({ error: "Forbidden" });
 
-    let nextStatus = b.status;
-    if (action === "confirm" && isProvider) nextStatus = "confirmed";
-    else if (action === "decline" && isProvider) nextStatus = "declined";
-    else if (action === "cancel" && isClient) nextStatus = "canceled";
-    else if (action === "done" && isProvider) nextStatus = "done";
-    else return res.status(400).json({ error: "Invalid action or permissions" });
-
+    const nextStatus = resolveNextBookingStatus(b.status, action, isClient, isProvider);
+    if (!nextStatus) return res.status(400).json({ error: "Invalid action or permissions" });
+    
     const booking = await prisma.booking.update({ where: { id }, data: { status: nextStatus } });
     res.json({ booking });
   } catch (e) {

@@ -68,13 +68,11 @@ export default function BookProviderPage() {
     })();
   }, [username]);
 
-  // дни недели
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
     [weekStart]
   );
 
-  // элементы для отрисовки/проверки пересечений в ячейках
   const items = useMemo(() => {
     const list: {
       type: "busy" | "booking";

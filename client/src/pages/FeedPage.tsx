@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { getFeed, toggleLike, addComment, getAnnouncements, createReport } from "../api";
 import type { Announcement } from "../api";
+import "../styles/feed.css";
 
 type FeedPost = {
   id: number | string;
@@ -209,27 +210,19 @@ export default function FeedPage() {
   const canLoadMore = useMemo(() => cursor !== null && !loading, [cursor, loading]);
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
-      <h1>Home</h1>
+    <div className="feedPage">
+      <h1 className="feedTitle">Home</h1>
 
       {flash && (
-        <div
-          style={{
-            border: "1px solid #333",
-            borderRadius: 12,
-            padding: 10,
-            background: flash.type === "ok" ? "rgba(0,255,0,0.06)" : "rgba(255,0,0,0.06)",
-            color: flash.type === "ok" ? "#9fff9f" : "#ff9f9f",
-          }}
-        >
+        <div className={`flash ${flash.type === "ok" ? "flashOk" : "flashErr"}`}>
           {flash.text}
         </div>
       )}
 
       {!!anns.length && (
-        <div style={{ border: "1px solid #333", borderRadius: 12, padding: 12 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <div style={{ fontWeight: 800 }}>📢 Announcements</div>
+        <div className="annCard">
+          <div className="annHeader">
+            <div className="annTitle">📢 Announcements</div>
             <div style={{ marginLeft: "auto" }}>
               <button type="button" onClick={loadAnnouncements}>
                 Refresh
@@ -237,12 +230,16 @@ export default function FeedPage() {
             </div>
           </div>
 
-          <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
+          <div className="annList">
             {anns.map((a) => (
-              <div key={a.id} style={{ borderBottom: "1px solid #2a2a2a", paddingBottom: 10 }}>
+              <div key={a.id} className="annItem">
                 <div style={{ fontWeight: 700 }}>{a.title}</div>
-                {!!a.body && <div style={{ opacity: 0.9, whiteSpace: "pre-wrap", marginTop: 4 }}>{a.body}</div>}
-                <div style={{ fontSize: 12, opacity: 0.65, marginTop: 6 }}>
+                {!!a.body && (
+                  <div style={{ opacity: 0.9, whiteSpace: "pre-wrap", marginTop: 4 }}>
+                    {a.body}
+                  </div>
+                )}
+                <div className="annMeta">
                   {new Date(a.createdAt).toLocaleString()}
                   {a.createdBy?.username ? ` · by @${a.createdBy.username}` : ""}
                 </div>
@@ -255,71 +252,79 @@ export default function FeedPage() {
       {err && <div style={{ color: "crimson" }}>{err}</div>}
 
       {posts.map((p) => (
-        <article key={p.id} style={{ border: "1px solid #333", borderRadius: 12, overflow: "hidden" }}>
-          <header style={{ display: "flex", alignItems: "center", gap: 10, padding: 8 }}>
+        <article key={p.id} className="postCard">
+          <header className="postHeader">
             <img
+              className="postAvatar"
               src={(p.author.avatarUrl && p.author.avatarUrl.trim()) ? p.author.avatarUrl : FALLBACK_AVATAR}
-              width={40}
-              height={40}
-              style={{ borderRadius: "50%", objectFit: "cover" }}
               alt=""
             />
-            <Link to={`/profile/${p.author.username}`} style={{ fontWeight: 600 }}>
+            <Link className="postUser" to={`/profile/${p.author.username}`}>
               @{p.author.username}
             </Link>
-            <span style={{ marginLeft: "auto", opacity: 0.7, fontSize: 13 }}>
-              {new Date(p.createdAt).toLocaleString()}
-            </span>
+            <span className="postMeta">{new Date(p.createdAt).toLocaleString()}</span>
           </header>
 
-          {p.videoUrl ? (
-            <video
-              ref={bind(p.id)}
-              src={p.videoUrl}
-              muted
-              playsInline
-              loop
-              autoPlay
-              preload="metadata"
-              style={{ width: "100%", display: "block", maxHeight: 650, objectFit: "cover" }}
-              onClick={(e) => {
-                const v = e.currentTarget;
-                if (v.paused) v.play().catch(() => {});
-                else v.pause();
-              }}
-            />
-          ) : (
-            <img src={p.imageUrl} alt="" style={{ width: "100%", display: "block" }} />
-          )}
+          {/* ✅ важно: медиа обёртка ограничивает размер */}
+          <div className="postMedia">
+            {p.videoUrl ? (
+              <video
+                ref={bind(p.id)}
+                src={p.videoUrl}
+                muted
+                playsInline
+                loop
+                autoPlay
+                preload="metadata"
+                onClick={(e) => {
+                  const v = e.currentTarget;
+                  if (v.paused) v.play().catch(() => {});
+                  else v.pause();
+                }}
+              />
+            ) : (
+              <img src={p.imageUrl} alt="" />
+            )}
+          </div>
 
           {(p.caption || p.location) && (
-            <div style={{ padding: 8 }}>
-              {p.location && <div style={{ opacity: 0.8 }}>📍 {p.location}</div>}
-              {p.caption && <div>{p.caption}</div>}
+            <div className="postCaption">
+              {p.location && <div className="postLocation">📍 {p.location}</div>}
+              {p.caption && <div className="postText">{p.caption}</div>}
             </div>
           )}
 
-          <div style={{ padding: 8, display: "grid", gap: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={() => onToggleLike(p.id)} disabled={busyPostId === p.id} style={{ cursor: "pointer" }} type="button">
+          <div className="postActions">
+            <div className="actionsRow">
+              <button
+                className="actionBtn"
+                onClick={() => onToggleLike(p.id)}
+                disabled={busyPostId === p.id}
+                type="button"
+              >
                 {p.likedByMe ? "❤️" : "🤍"} {p.likeCount}
               </button>
 
-              <div style={{ opacity: 0.8 }}>💬 {p.commentCount}</div>
+              <div className="countText">💬 {p.commentCount}</div>
 
-              <button type="button" onClick={() => onReportPost(p.id)}>
+              <button className="actionBtn" type="button" onClick={() => onReportPost(p.id)}>
                 🚩 Report
               </button>
             </div>
 
             {!!p.lastComments?.length && (
-              <div style={{ display: "grid", gap: 6 }}>
+              <div className="comments">
                 {p.lastComments.map((c) => (
-                  <div key={c.id} style={{ fontSize: 13, opacity: 0.9, display: "flex", gap: 8 }}>
-                    <div style={{ flex: 1 }}>
+                  <div key={c.id} className="commentRow">
+                    <div className="commentBody">
                       <b>@{c.author.username}</b> {c.text}
                     </div>
-                    <button type="button" onClick={() => onReportComment(Number(c.id))} style={{ fontSize: 12 }} title="Report comment">
+                    <button
+                      type="button"
+                      onClick={() => onReportComment(Number(c.id))}
+                      className="actionBtn commentReport"
+                      title="Report comment"
+                    >
                       🚩
                     </button>
                   </div>
@@ -327,14 +332,19 @@ export default function FeedPage() {
               </div>
             )}
 
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="commentInputRow">
               <input
+                className="commentInput"
                 value={commentText[String(p.id)] || ""}
                 onChange={(e) => setCommentText((map) => ({ ...map, [String(p.id)]: e.target.value }))}
                 placeholder="Add a comment..."
-                style={{ flex: 1 }}
               />
-              <button type="button" onClick={() => onSendComment(p.id)} disabled={busyPostId === p.id}>
+              <button
+                className="actionBtn"
+                type="button"
+                onClick={() => onSendComment(p.id)}
+                disabled={busyPostId === p.id}
+              >
                 Send
               </button>
             </div>
@@ -343,7 +353,7 @@ export default function FeedPage() {
       ))}
 
       {canLoadMore && (
-        <button onClick={() => load(false)} disabled={loading}>
+        <button className="actionBtn" onClick={() => load(false)} disabled={loading}>
           {loading ? "Loading..." : "Load more"}
         </button>
       )}
