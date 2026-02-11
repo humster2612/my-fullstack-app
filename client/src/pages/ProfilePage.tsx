@@ -141,7 +141,7 @@ export default function ProfilePage() {
   const { username } = useParams();
   const [user, setUser] = useState<PublicUser | null>(null);
   const [meId, setMeId] = useState<number | string | null>(null);
-  const [meUsername, setMeUsername] = useState<string | null>(null);
+
   const [isFollowing, setIsFollowing] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -211,10 +211,8 @@ export default function ProfilePage() {
       try {
         const me = await getMe();
         setMeId(me.user?.id ?? null);
-        setMeUsername(me.user?.username ?? null);
       } catch {
         setMeId(null);
-        setMeUsername(null);
       }
     })();
   }, []);
@@ -485,7 +483,11 @@ export default function ProfilePage() {
                 </div>
 
                 <input placeholder="Title (optional)" value={ppTitle} onChange={(e) => setPpTitle(e.target.value)} />
-                <input placeholder="URL (required) https://..." value={ppUrl} onChange={(e) => setPpUrl(e.target.value)} />
+                <input
+                  placeholder="URL (required) https://..."
+                  value={ppUrl}
+                  onChange={(e) => setPpUrl(e.target.value)}
+                />
                 <input
                   placeholder="Thumb URL (optional) https://..."
                   value={ppThumb}
