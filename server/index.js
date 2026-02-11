@@ -12,6 +12,14 @@ const { isProviderRole, safeInt, resolveNextBookingStatus } = require("./utils/b
 
 const prisma = new PrismaClient();
 const app = express();
+app.set("trust proxy", 1);
+
+function getPublicBaseUrl(req) {
+  return (
+    process.env.PUBLIC_BASE_URL ||
+    `${req.protocol}://${req.get("host")}`
+  );
+}
 
 /* -------------------- CORS -------------------- */
 const isProd = process.env.NODE_ENV === "production";
@@ -571,7 +579,8 @@ app.get("/api/users", async (req, res) => {
 app.post("/api/users/me/avatar", auth, uploadAvatar.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file" });
-    const publicUrl = `${req.protocol}://${req.get("host")}/uploads/avatars/${req.file.filename}`;
+    const publicUrl = `${getPublicBaseUrl(req)}/uploads/avatars/${req.file.filename}`;
+
     await prisma.user.update({ where: { id: req.userId }, data: { avatarUrl: publicUrl } });
     res.json({ url: publicUrl });
   } catch (e) {
@@ -586,7 +595,8 @@ app.post("/api/posts", auth, uploadPost.single("file"), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No file" });
     const { caption = "", location = "" } = req.body;
 
-    const url = `${req.protocol}://${req.get("host")}/uploads/posts/${req.file.filename}`;
+    const url = `${getPublicBaseUrl(req)}/uploads/posts/${req.file.filename}`;
+
     const isVideo = /^video\//i.test(req.file.mimetype);
 
     const post = await prisma.post.create({
