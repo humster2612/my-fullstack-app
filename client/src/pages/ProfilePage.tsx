@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import "../styles/profile.css";
 import Avatar from "../Avatar";
 import {
   getUserByUsername,
@@ -503,9 +504,7 @@ export default function ProfilePage() {
                 <button disabled={ppBusy} onClick={addPortfolioItem}>
                   {ppBusy ? "Saving..." : "Add"}
                 </button>
-                <div style={{ opacity: 0.7, fontSize: 12 }}>
-                  Tip: VIDEO supports YouTube / Vimeo embeds. IMAGE uses thumbUrl or url as image.
-                </div>
+               
               </div>
             </div>
           )}
@@ -608,37 +607,54 @@ export default function ProfilePage() {
         </section>
       )}
 
-      <hr style={{ opacity: 0.2 }} />
+<hr style={{ opacity: 0.2 }} />
 
-      <h3 style={{ margin: 0 }}>Posts</h3>
-      {!posts ? (
-        <div>Loading posts...</div>
-      ) : posts.length ? (
-        <div style={{ display: "grid", gap: 12 }}>
-          {posts.map((p) => (
-            <div key={p.id} style={{ border: "1px solid #333", borderRadius: 12, overflow: "hidden" }}>
-              {p.videoUrl ? (
-                <video src={p.videoUrl} controls style={{ width: "100%", display: "block" }} />
-              ) : (
-                <img
-                  src={p.imageUrl || "https://via.placeholder.com/600x400"}
-                  alt=""
-                  style={{ width: "100%", display: "block" }}
-                />
-              )}
+<h3 style={{ margin: 0 }}>Posts</h3>
 
-              {(p.caption || p.location) && (
-                <div style={{ padding: 8 }}>
-                  {p.location && <div style={{ opacity: 0.8 }}>📍 {p.location}</div>}
-                  {p.caption && <div>{p.caption}</div>}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div>No posts yet</div>
-      )}
+{!posts ? (
+  <div>Loading posts...</div>
+) : posts.length ? (
+  <div className="profileGrid">
+    {posts.map((p) => (
+  <div key={p.id} className="profileGridItem">
+    {p.videoUrl ? (
+      <video
+        src={p.videoUrl}
+        muted
+        playsInline
+        preload="metadata"
+        className="profileGridMedia"
+      />
+    ) : p.imageUrl ? (
+      <img
+        src={p.imageUrl}
+        alt=""
+        className="profileGridMedia"
+        loading="lazy"
+        onError={(e) => {
+          // если картинка не загрузилась — скрываем <img> и показываем "+"
+          e.currentTarget.style.display = "none";
+          const parent = e.currentTarget.parentElement;
+          if (parent && !parent.querySelector(".profileGridEmpty")) {
+            const div = document.createElement("div");
+            div.className = "profileGridEmpty";
+            div.textContent = "+";
+            parent.appendChild(div);
+          }
+        }}
+      />
+    ) : (
+      <div className="profileGridEmpty">+</div>
+    )}
+
+    {p.videoUrl ? <div className="gridBadge">🎥</div> : null}
+  </div>
+))}
+  </div>
+) : (
+  <div>No posts yet</div>
+)}
+
 
       <div>
         <Link to="/">← Back to feed</Link>

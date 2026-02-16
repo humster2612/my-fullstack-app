@@ -57,7 +57,7 @@ export default function WorldProvidersMap() {
           zIndex: 5,
         }}
       >
-        <button
+        {/* <button
           type="button"
           onClick={() => setZoom((z) => Math.min(z + 0.5, 8))}
           style={zoomButton}
@@ -70,7 +70,7 @@ export default function WorldProvidersMap() {
           style={zoomButton}
         >
           –
-        </button>
+        </button> */}
       </div>
 
       <ComposableMap projection="geoMercator" style={{ width: "100%", height: "100%" }}>
@@ -161,14 +161,14 @@ export default function WorldProvidersMap() {
   );
 }
 
-const zoomButton: React.CSSProperties = {
-  width: 44,
-  height: 44,
-  borderRadius: 12,
-  border: "1px solid rgba(255,255,255,.18)",
-  background: "rgba(20,20,20,.9)",
-  color: "#fff",
-  fontSize: 22,
-  cursor: "pointer",
-  fontWeight: 700,
-};
+// const zoomButton: React.CSSProperties = {
+//   width: 44,
+//   height: 44,
+//   borderRadius: 12,
+//   border: "1px solid rgba(255,255,255,.18)",
+//   background: "rgba(20,20,20,.9)",
+//   color: "#fff",
+//   fontSize: 22,
+//   cursor: "pointer",
+//   fontWeight: 700,
+// };

@@ -1,12 +1,13 @@
 /* client/src/styles/feed.css */
 
 .feedPage {
-    max-width: 560px;        /* инста-ширина */
-    margin: 0 auto;
-    padding: 16px 12px 40px;
-    display: grid;
-    gap: 16px;
-  }
+  margin: 0 auto;
+  padding: 16px 12px 40px;
+  display: grid;
+  gap: 16px;
+  max-width: 1200px;   /* общий контейнер (чтобы правая колонка поместилась) */
+}
+
   
   .feedTitle {
     margin: 0;
@@ -69,6 +70,7 @@
     background: rgba(255,255,255,.03);
     border-radius: 14px;
     overflow: hidden;
+    margin-bottom: 6px;
   }
   
   .postHeader {
@@ -100,10 +102,10 @@
   }
   
   /* ✅ главное: ограничиваем медиа */
-  .postMedia {
+  .postMedia{
     width: 100%;
-    aspect-ratio: 1 / 1;     /* как Instagram (квадрат) */
-    background: #000;
+    aspect-ratio: 4 / 5;   /* было 1/1 */
+    background:#000;
   }
   
   .postMedia img,
@@ -131,7 +133,7 @@
     line-height: 1.35;
   }
   
-  /* actions + comments */
+ 
   .postActions {
     padding: 10px 12px 12px;
     display: grid;
@@ -197,5 +199,34 @@
   @media (max-width: 640px) {
     .feedPage { max-width: 100%; }
     .postCard { border-radius: 12px; }
+  }
+  
+  .feedLayout{
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) 360px;
+    gap:16px;
+    align-items:start;
+  }
+  
+  .feedMain{
+    min-width:0;
+    max-width:560px;      /* инста-ширина */
+    margin: 0 auto;       /* по центру */
+    display: grid;
+    gap: 18px;            /* ✅ отступы между блоками/постами */
+  }
+  
+  .feedRight{
+    position:sticky;
+    top:16px;
+  }
+  
+  @media (max-width: 900px){
+    .feedLayout{
+      grid-template-columns:1fr;
+    }
+    .feedRight{
+      position:static;
+    }
   }
   

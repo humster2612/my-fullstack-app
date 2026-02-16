@@ -1,0 +1,107 @@
+/* ===== NAVBAR ===== */
+
+.mainNav{
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+  
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  
+    /* ❗важно: НЕ переносить в 2 ряда */
+    flex-wrap: nowrap;      /* ✅ не переносить */
+    overflow-x:auto;      
+
+    padding: 14px 18px;
+    margin-bottom: 26px;
+  
+    border-radius: 18px;
+  
+    background: rgba(20,20,28,0.55);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  
+    /* ✅ если не влазит — аккуратный горизонтальный скролл */
+ 
+    overflow-y: hidden;
+    white-space: nowrap;
+  }
+  
+  /* скрываем скроллбар (чтобы красиво) */
+  .mainNav::-webkit-scrollbar{ height: 0; }
+  .mainNav{ scrollbar-width: none; }
+  
+  /* ссылки */
+  .mainNav a{
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  
+    color: rgba(255,255,255,0.85);
+    padding: 8px 12px;
+    border-radius: 12px;
+  
+    transition: all .2s ease;
+  
+    /* ❗важно: чтобы каждая ссылка НЕ сжималась и не ломала ряд */
+    flex: 0 0 auto;
+  }
+  
+  .mainNav a:hover{
+    background: rgba(184,193,255,0.15);
+    color: #fff;
+  }
+  
+  .mainNav a, .mainNav button{
+    flex: 0 0 auto;         /* ✅ элементы не сжимаются/не ломают ряд */
+  }
+
+
+  /* spacer справа */
+  .mainNav .navSpacer{
+    margin-left: auto;      /* ✅ logout уходит вправо */
+    flex: 0 0 auto;
+  }
+  /* logout */
+  .mainNav button{
+    flex: 0 0 auto;
+  
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.85);
+  
+    padding: 8px 14px;
+    border-radius: 12px;
+  
+    cursor: pointer;
+    transition: all .2s ease;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+  
+  .mainNav button:hover{
+    background: rgba(255,100,100,0.15);
+    border-color: rgba(255,100,100,0.4);
+    color: #ff9f9f;
+  }
+  
+  /* Mobile */
+  
+  @media (max-width: 800px){
+    .mainNav{
+      gap: 12px;
+      padding: 12px;
+    }
+  
+    .mainNav a{
+      font-size: 13px;
+    }
+  }
+  

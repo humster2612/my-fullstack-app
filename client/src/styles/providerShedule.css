@@ -1,0 +1,213 @@
+/* client/src/styles/providerSchedule.css */
+
+.psLayout{
+    display:grid;
+    grid-template-columns: minmax(0, 1fr) 420px;  
+    gap: 24px;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 16px 12px 40px;
+    align-items:start;
+  }
+  
+  .psLeft{ min-width:0; }
+  
+  .psHeaderRow{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:16px;
+  }
+  
+  .psTitle{
+    margin:0 0 10px;
+    font-size:24px;
+  }
+  
+  .psWeekNav{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  
+  .psWeekRange{
+    opacity:.85;
+    padding:8px 10px;
+    border:1px solid rgba(255,255,255,.10);
+    border-radius:12px;
+    background:rgba(255,255,255,.03);
+    white-space:nowrap;
+  }
+  
+  /* кнопки */
+  .psBtn{
+    padding:8px 12px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.25);
+    cursor:pointer;
+  }
+  .psBtn:hover{ background: rgba(255,255,255,.06); }
+  
+  /* Calendar */
+  .psCalendarWrap{
+    margin-top:10px;
+    border:1px solid rgba(255,255,255,.10);
+    border-radius:14px;
+    overflow:hidden;
+    background: rgba(255,255,255,.02);
+  }
+  
+  .psCalendarGrid{
+    display:grid;
+    grid-template-columns: 110px repeat(7, 1fr);
+  }
+  
+  .psCalHead{
+    background: rgba(0,0,0,.35);
+    text-align:center;
+    padding:10px 6px;
+    border-left:1px solid rgba(255,255,255,.06);
+  }
+  .psCalHeadEmpty{ border-left:none; }
+  
+  .psCalWeekday{ font-weight:800; text-transform:capitalize; }
+  .psCalDay{ opacity:.85; margin-top:2px; }
+  
+  .psCalTime{
+    padding:10px 10px;
+    border-top:1px solid rgba(255,255,255,.06);
+    background: rgba(0,0,0,.15);
+  }
+  
+  /* Right panel */
+  .psRight{
+    position: static;   /* обычное поведение */
+  align-self: start;
+  }
+  
+  .psCard{
+    border:1px solid rgba(255,255,255,.10);
+    background: rgba(255,255,255,.03);
+    border-radius:16px;
+    padding:14px;
+    display:grid;
+    gap:12px;
+  }
+  
+  .psCardTop{
+    display:grid;
+    gap:6px;
+    padding-bottom:10px;
+    border-bottom:1px solid rgba(255,255,255,.08);
+  }
+  
+  .psCardTitle{
+    margin:0;
+    font-size:18px;
+  }
+  
+  .psCardHint{
+    font-size:12px;
+    opacity:.7;
+  }
+  
+  .psFormGrid{ display:grid; gap:10px; }
+  
+  .psRow2{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:10px;
+  }
+  
+  .psField{ display:grid; gap:6px; }
+  .psLabel{ font-size:12px; opacity:.8; }
+  
+  .psInput{
+    width:100%;
+    padding:10px 12px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.25);
+    color: rgba(255,255,255,.92);
+    outline:none;
+    box-sizing:border-box;
+  }
+  
+  .psInput:focus{
+    border-color: rgba(184,193,255,.55);
+    box-shadow: 0 0 0 3px rgba(184,193,255,.12);
+  }
+  
+  .psBtnPrimary{
+    padding:10px 12px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,.12);
+    background: rgba(184,193,255,.20);
+    font-weight:800;
+    cursor:pointer;
+  }
+  .psBtnPrimary:hover{ background: rgba(184,193,255,.28); }
+  
+  .psErrText{ color:#ff6b6b; margin-top:10px; }
+  .psMuted{ margin-top:10px; opacity:.8; }
+  .psMutedSmall{ font-size:13px; opacity:.8; }
+  
+  /* Requests */
+  .psRequests{
+    max-width: 1180px;
+    margin: 18px auto 0;
+    padding: 0 12px 40px;
+    display:grid;
+    gap:12px;
+  }
+  
+  .psReqCard{
+    padding:12px;
+    border-radius:14px;
+    background: rgba(255,255,255,.03);
+    border:1px solid rgba(255,255,255,.10);
+    display:grid;
+    gap:8px;
+  }
+  
+  .psReqTop{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+  }
+  
+  .psStatusPill{
+    align-self:flex-start;
+    padding:2px 10px;
+    border-radius:999px;
+    font-size:12px;
+    text-transform:uppercase;
+  }
+  
+  .psReqNote{ font-size:13px; opacity:.9; }
+  
+  .psReqActions{ display:flex; gap:8px; margin-top:4px; }
+  
+  /* Toast */
+  .psToast{
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: #222;
+    color: #fff;
+    font-size: 14px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+    z-index: 9999;
+  }
+  
+  /* Mobile */
+  @media (max-width: 980px){
+    .psLayout{ grid-template-columns: 1fr; }
+    .psRight{ position: static; }
+    .psRow2{ grid-template-columns: 1fr; }
+  }
+  

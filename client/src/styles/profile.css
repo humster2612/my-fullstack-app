@@ -1,0 +1,66 @@
+.profileGrid{
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0, 1fr));
+    gap:8px;
+    margin-top:10px;
+  }
+  
+  .profileGridItem{
+    position:relative;
+    border-radius:10px;
+    overflow:hidden;
+    border:1px solid rgba(255,255,255,.08);
+    background:rgba(255,255,255,.02);
+    transition:.2s ease;
+  }
+  
+  .profileGridItem::before{
+    content:"";
+    display:block;
+    padding-top:100%;
+  }
+  
+  .profileGridMedia{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    display:block;
+  }
+  
+  .profileGridEmpty{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:48px;
+    font-weight:300;
+    color:rgba(255,255,255,0.4);
+    background:rgba(255,255,255,0.06);
+    cursor: default;
+  }
+  
+  .profileGridItem:hover{
+    background:rgba(255,255,255,.05);
+  }
+  
+  .gridBadge{
+    position:absolute;
+    top:8px;
+    right:8px;
+    font-size:12px;
+    padding:4px 8px;
+    border-radius:999px;
+    background:rgba(0,0,0,.55);
+    border:1px solid rgba(255,255,255,.12);
+  }
+  
+  @media (max-width: 520px){
+    .profileGrid{
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:6px;
+    }
+  }
+  

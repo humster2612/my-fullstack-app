@@ -1,6 +1,7 @@
 // client/src/pages/BookProviderPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import "../styles/booking.css";
 import {
   getProviderUnavailability,
   getProviderIdByUsername,
@@ -146,6 +147,7 @@ export default function BookProviderPage() {
     try {
       setSubmitting(true);
       const { id } = await getProviderIdByUsername(username);
+      
       await createBookingByDate(id, start.toISOString(), end.toISOString(), note);
       setMsg("  Wyslano!");
       setNote("");
@@ -157,152 +159,146 @@ export default function BookProviderPage() {
   }
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 360px",
-        gap: 24,
-        maxWidth: 1100,
-        margin: "0 auto",
-      }}
-    >
-      <div>
-        <h2 style={{ marginTop: 0 }}>@{username} — Schedule</h2>
-
-        {/* Навигация по неделям */}
-        <div
-          style={{
-            display: "flex",
-            gap: 12,
-            alignItems: "center",
-            marginBottom: 8,
-          }}
-        >
-          <button onClick={() => setWeekStart(addDays(weekStart, -7))}>
-            ← Prev
-          </button>
-          <div style={{ opacity: 0.8 }}>
-            {weekDays[0].toLocaleDateString()} —{" "}
-            {weekDays[6].toLocaleDateString()}
-          </div>
-          <button onClick={() => setWeekStart(addDays(weekStart, 7))}>
-            Next →
-          </button>
-        </div>
-
-        {/* Календарь недели (read-only) */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "120px repeat(7, 1fr)",
-            border: "1px solid #333",
-            borderRadius: 12,
-            overflow: "hidden",
-          }}
-        >
-          {/* Заголовок дней */}
-          <div style={{ background: "#151515" }} />
-          {weekDays.map((d) => (
-            <div
-              key={d.toDateString()}
-              style={{ padding: 8, background: "#151515", textAlign: "center" }}
-            >
-              <b>{d.toLocaleDateString(undefined, { weekday: "short" })}</b>
-              <br />
-              {d.getDate()}
+    <div className="bookLayout">
+      <div className="bookLeft">
+        <div className="bookHeaderRow">
+          <h2 className="bookTitle">@{username} — Schedule</h2>
+  
+          <div className="weekNav">
+            <button className="btn" onClick={() => setWeekStart(addDays(weekStart, -7))}>
+              ← Prev
+            </button>
+  
+            <div className="weekRange">
+              {weekDays[0].toLocaleDateString()} — {weekDays[6].toLocaleDateString()}
             </div>
-          ))}
-
-          {/* Часы + клетки */}
-          {Array.from({ length: 12 }, (_, h) => h + 8).map((h) => (
-            <div key={`row-${h}`} style={{ display: "contents" }}>
-              <div style={{ padding: 8, borderTop: "1px solid #333" }}>
-                {h}:00
+  
+            <button className="btn" onClick={() => setWeekStart(addDays(weekStart, 7))}>
+              Next →
+            </button>
+          </div>
+        </div>
+  
+        <div className="calendarWrap">
+          <div className="calendarGrid">
+            {/* header пустой слева */}
+            <div className="calHead calHeadEmpty" />
+  
+            {weekDays.map((d) => (
+              <div key={d.toDateString()} className="calHead">
+                <div className="calWeekday">
+                  {d.toLocaleDateString(undefined, { weekday: "short" })}
+                </div>
+                <div className="calDay">{d.getDate()}</div>
               </div>
-              {weekDays.map((d, i) => (
-                <HourCell
-                  key={`${h}-${i}`}
-                  day={d}
-                  hour={h}
-                  items={items}
-                  onPick={() => pickSlot(d, h)}
-                />
-              ))}
-            </div>
-          ))}
-        </div>
-
-        {err && (
-          <div style={{ color: "crimson", marginTop: 8 }}>
-            {err}
+            ))}
+  
+            {/* часы + клетки */}
+            {Array.from({ length: 12 }, (_, h) => h + 8).map((h) => (
+              <div key={`row-${h}`} style={{ display: "contents" }}>
+                <div className="calTime">{h}:00</div>
+  
+                {weekDays.map((d, i) => (
+                  <HourCell
+                    key={`${h}-${i}`}
+                    day={d}
+                    hour={h}
+                    items={items}
+                    onPick={() => pickSlot(d, h)}
+                  />
+                ))}
+              </div>
+            ))}
           </div>
-        )}
+        </div>
+  
+        {err && <div className="errText">{err}</div>}
+        {msg && <div className="okText">{msg}</div>}
       </div>
-
-      {/* Панель бронирования */}
-      <form
-        onSubmit={submit}
-        style={{ display: "grid", gap: 10, alignSelf: "start" }}
-      >
-        <h3 style={{ marginTop: 0 }}>Book this spot</h3>
-
-        <label>
-          Date
-          <input
-            type="date"
-            value={day}
-            onChange={(e) => setDay(e.target.value)}
-            required
-          />
-        </label>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          <label style={{ flex: 1 }}>
-            From
-            <input
-              type="time"
-              value={from}
-              onChange={(e) => setFrom(e.target.value)}
-              required
-            />
-          </label>
-          <label style={{ flex: 1 }}>
-            Duration
-            <select
-              value={duration}
-              onChange={(e) => setDuration(parseInt(e.target.value, 10))}
+  
+      {/* Правая панель */}
+      <aside className="bookRight">
+        <form onSubmit={submit} className="bookCard">
+          <div className="bookCardTop">
+            <h3 className="bookCardTitle">Book this spot</h3>
+            {/* <div className="bookCardHint">Pick a slot in the calendar or fill the form.</div> */}
+          </div>
+  
+          <div className="formGrid">
+            <label className="field">
+              <span className="label">Date</span>
+              <input
+                className="input"
+                type="date"
+                value={day}
+                onChange={(e) => setDay(e.target.value)}
+                required
+              />
+            </label>
+  
+            <div className="row2">
+              <label className="field">
+                <span className="label">From</span>
+                <input
+                  className="input"
+                  type="time"
+                  value={from}
+                  onChange={(e) => setFrom(e.target.value)}
+                  required
+                />
+              </label>
+  
+              <label className="field">
+                <span className="label">Duration</span>
+                <select
+                  className="input"
+                  value={duration}
+                  onChange={(e) => setDuration(parseInt(e.target.value, 10))}
+                >
+                  <option value={30}>30 min</option>
+                  <option value={60}>60 min</option>
+                  <option value={90}>90 min</option>
+                </select>
+              </label>
+            </div>
+  
+            <label className="field">
+              <span className="label">Add description</span>
+              <input
+                className="input"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="write your type of event"
+              />
+            </label>
+  
+            <button className="btnPrimary" disabled={submitting} type="submit">
+              {submitting ? "Booking…" : "BOOK THIS SPOT"}
+            </button>
+  
+            <button
+              className="btnGhost"
+              type="button"
+              onClick={() => {
+                setDay("");
+                setFrom("09:00");
+                setDuration(60);
+                setNote("");
+                setMsg(null);
+                setErr(null);
+              }}
             >
-              <option value={30}>30 min</option>
-              <option value={60}>60 min</option>
-              <option value={90}>90 min</option>
-            </select>
-          </label>
-        </div>
-
-        <label>
-          Add description
-          <input
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="type of shoot…"
-          />
-        </label>
-
-        <button disabled={submitting}>
-          {submitting ? "Booking…" : "BOOK THIS SPOT"}
-        </button>
-        <div
-          style={{ fontSize: 12, opacity: 0.7, textAlign: "center" }}
-        >
-          Cancel
-        </div>
-
-        {msg && <div style={{ color: "limegreen" }}>{msg}</div>}
-        {err && <div style={{ color: "crimson" }}>{err}</div>}
-      </form>
+              Cancel
+            </button>
+  
+            {err && <div className="errText">{err}</div>}
+            {msg && <div className="okText">{msg}</div>}
+          </div>
+        </form>
+      </aside>
     </div>
   );
-}
+  
 
 /* ---------- цвета статусов ---------- */
 
@@ -400,4 +396,5 @@ function HourCell({
       })}
     </div>
   );
+}
 }

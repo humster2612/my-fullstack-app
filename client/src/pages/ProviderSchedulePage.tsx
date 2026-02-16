@@ -10,6 +10,8 @@ import {
   updateBooking,
 } from "../api";
 
+import "../styles/providerShedule.css";
+
 /* ===== helper функции даты ===== */
 
 function startOfWeek(d = new Date()) {
@@ -237,7 +239,7 @@ export default function ProviderSchedulePage() {
       if (action === "confirm") setToast("Booking approved");
       else if (action === "decline") setToast("Booking rejected");
       else setToast("Marked as done");
-      
+
       setTimeout(() => setToast(null), 2500);
     } catch {
       setToast("Failed to update booking");
@@ -249,240 +251,157 @@ export default function ProviderSchedulePage() {
 
   return (
     <>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1.4fr 0.9fr",
-          gap: 24,
-          alignItems: "flex-start",
-        }}
-      >
-        {/* левая часть — календарь */}
-        <div>
-          <h2 style={{ marginTop: 0 }}>My schedule</h2>
+      {/* ТОП: календарь слева + Add busy справа */}
+      <div className="psLayout">
+        <div className="psLeft">
+          <div className="psHeaderRow">
+            <h2 className="psTitle">@{me?.username ?? "me"} — Schedule</h2>
 
-          {/* навигация по неделям */}
-          <div
-            style={{
-              display: "flex",
-              gap: 12,
-              alignItems: "center",
-              marginBottom: 8,
-            }}
-          >
-            <button onClick={() => setWeekStart(addDays(weekStart, -7))}>
-              ← Prev
-            </button>
-            <div style={{ opacity: 0.8 }}>
-              {weekDays[0].toLocaleDateString()} —{" "}
-              {weekDays[6].toLocaleDateString()}
+            <div className="psWeekNav">
+              <button className="psBtn" onClick={() => setWeekStart(addDays(weekStart, -7))}>
+                ← Prev
+              </button>
+
+              <div className="psWeekRange">
+                {weekDays[0].toLocaleDateString()} — {weekDays[6].toLocaleDateString()}
+              </div>
+
+              <button className="psBtn" onClick={() => setWeekStart(addDays(weekStart, 7))}>
+                Next →
+              </button>
             </div>
-            <button onClick={() => setWeekStart(addDays(weekStart, 7))}>
-              Next →
-            </button>
           </div>
 
-          {/* календарь недели */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "120px repeat(7, 1fr)",
-              border: "1px solid #333",
-              borderRadius: 12,
-              overflow: "hidden",
-            }}
-          >
-            {/* заголовки дней */}
-            <div style={{ background: "#151515" }} />
-            {weekDays.map((d) => (
-              <div
-                key={d.toDateString()}
-                style={{
-                  padding: 8,
-                  background: "#151515",
-                  textAlign: "center",
-                }}
-              >
-                <b>
-                  {d.toLocaleDateString(undefined, {
-                    weekday: "short",
-                  })}
-                </b>
-                <br />
-                {d.getDate()}
-              </div>
-            ))}
+          <div className="psCalendarWrap">
+            <div className="psCalendarGrid">
+              <div className="psCalHead psCalHeadEmpty" />
 
-            {/* строки по часам */}
-            {Array.from({ length: 12 }, (_, h) => h + 8).map((h) => (
-              <div key={`row-${h}`} style={{ display: "contents" }}>
-                <div
-                  style={{
-                    padding: 8,
-                    borderTop: "1px solid #333",
-                  }}
-                >
-                  {h}:00
+              {weekDays.map((d) => (
+                <div key={d.toDateString()} className="psCalHead">
+                  <div className="psCalWeekday">
+                    {d.toLocaleDateString(undefined, { weekday: "short" })}
+                  </div>
+                  <div className="psCalDay">{d.getDate()}</div>
                 </div>
-                {weekDays.map((d, i) => (
-                  <HourCell
-                    key={`${h}-${i}`}
-                    day={d}
-                    hour={h}
-                    items={items}
-                    onPick={() => {
-                      // по клику просто сейчас ничего не делаем,
-                      // можно потом добавить автозаполнение формы
-                    }}
-                    onDeleteBusy={handleDeleteBusy}
-                  />
-                ))}
-              </div>
-            ))}
+              ))}
+
+              {Array.from({ length: 12 }, (_, h) => h + 8).map((h) => (
+                <div key={`row-${h}`} style={{ display: "contents" }}>
+                  <div className="psCalTime">{h}:00</div>
+
+                  {weekDays.map((d, i) => (
+                    <HourCell
+                      key={`${h}-${i}`}
+                      day={d}
+                      hour={h}
+                      items={items}
+                      onPick={() => {
+                        // тут сейчас ничего не делаем
+                      }}
+                      onDeleteBusy={handleDeleteBusy}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
 
-          {errCal && (
-            <div style={{ color: "crimson", marginTop: 8 }}>{errCal}</div>
-          )}
-          {loadingCal && (
-            <div style={{ marginTop: 8, opacity: 0.8 }}>Loading calendar…</div>
-          )}
+          {errCal && <div className="psErrText">{errCal}</div>}
+          {loadingCal && <div className="psMuted">Loading calendar…</div>}
         </div>
 
-        {/* правая часть — форма busy + подсказка */}
-        <div style={{ display: "grid", gap: 14 }}>
-          <h3 style={{ marginTop: 0 }}>Add busy interval</h3>
-
-          <form onSubmit={createBusy} style={{ display: "grid", gap: 8 }}>
-            <label>
-              Day
-              <input
-                type="date"
-                value={newDay}
-                onChange={(e) => setNewDay(e.target.value)}
-                required
-              />
-            </label>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 8,
-              }}
-            >
-              <label>
-                From
-                <input
-                  type="time"
-                  value={newFrom}
-                  onChange={(e) => setNewFrom(e.target.value)}
-                  required
-                />
-              </label>
-              <label>
-                To
-                <input
-                  type="time"
-                  value={newTo}
-                  onChange={(e) => setNewTo(e.target.value)}
-                  required
-                />
-              </label>
+        {/* справа: Add busy interval */}
+        <aside className="psRight">
+          <div className="psCard">
+            <div className="psCardTop">
+              <h3 className="psCardTitle">Add busy interval</h3>
+              <div className="psCardHint">
+                Tip: hover a colored block to see details (status, type, client).
+              </div>
             </div>
 
-            <button type="submit">Add busy</button>
-          </form>
+            <form onSubmit={createBusy} className="psFormGrid">
+              <label className="psField">
+                <span className="psLabel">Day</span>
+                <input
+                  className="psInput"
+                  type="date"
+                  value={newDay}
+                  onChange={(e) => setNewDay(e.target.value)}
+                  required
+                />
+              </label>
 
-          <div style={{ fontSize: 13, opacity: 0.8 }}>
-            Tip: click a cell to see booked intervals; hover a colored block to
-            see details (status, type, client).
+              <div className="psRow2">
+                <label className="psField">
+                  <span className="psLabel">From</span>
+                  <input
+                    className="psInput"
+                    type="time"
+                    value={newFrom}
+                    onChange={(e) => setNewFrom(e.target.value)}
+                    required
+                  />
+                </label>
+
+                <label className="psField">
+                  <span className="psLabel">To</span>
+                  <input
+                    className="psInput"
+                    type="time"
+                    value={newTo}
+                    onChange={(e) => setNewTo(e.target.value)}
+                    required
+                  />
+                </label>
+              </div>
+
+              <button type="submit" className="psBtnPrimary">
+                Add busy
+              </button>
+            </form>
           </div>
-        </div>
+        </aside>
       </div>
 
-      {/* блок запросов под календарём */}
-      <div
-        style={{
-          maxWidth: 900,
-          margin: "32px auto 0",
-          display: "grid",
-          gap: 12,
-        }}
-      >
+      {/* Requests — НИЖЕ */}
+      <div className="psRequests">
         <h2>Requests to me</h2>
-        {errReq && <div style={{ color: "crimson" }}>{errReq}</div>}
-        {loadingReq && <div>Loading…</div>}
+        {errReq && <div className="psErrText">{errReq}</div>}
+        {loadingReq && <div className="psMuted">Loading…</div>}
 
         {!loadingReq && requests.length === 0 && (
-          <div style={{ opacity: 0.7 }}>No booking requests yet.</div>
+          <div className="psMuted">No booking requests yet.</div>
         )}
 
         {requests.map((b) => (
-          <div
-            key={b.id}
-            style={{
-              padding: 12,
-              borderRadius: 12,
-              background: "#151515",
-              display: "grid",
-              gap: 6,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 8,
-              }}
-            >
+          <div key={b.id} className="psReqCard">
+            <div className="psReqTop">
               <div>
-                <div style={{ fontWeight: 600 }}>
-                  @{b.client?.username ?? "client"}
-                </div>
-                <div style={{ fontSize: 13, opacity: 0.8 }}>
-                  {formatInterval(b.date, b.durationMinutes)}
-                </div>
+                <div style={{ fontWeight: 700 }}>@{b.client?.username ?? "client"}</div>
+                <div className="psMutedSmall">{formatInterval(b.date, b.durationMinutes)}</div>
               </div>
-              <div
-                style={{
-                  alignSelf: "flex-start",
-                  padding: "2px 8px",
-                  borderRadius: 999,
-                  fontSize: 12,
-                  background: getStatusColor(b.status),
-                  textTransform: "uppercase",
-                }}
-              >
+
+              <div className="psStatusPill" style={{ background: getStatusColor(b.status) }}>
                 {b.status}
               </div>
             </div>
 
-            {b.note && (
-              <div style={{ fontSize: 13, opacity: 0.9 }}>Note: {b.note}</div>
-            )}
+            {b.note && <div className="psReqNote">Note: {b.note}</div>}
 
-            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <div className="psReqActions">
               {b.status === "pending" && (
                 <>
-                  <button
-                    onClick={() => changeStatus(b.id, "confirm")}
-                    style={{ flex: 1 }}
-                  >
+                  <button className="psBtn" onClick={() => changeStatus(b.id, "confirm")} style={{ flex: 1 }}>
                     Approve
                   </button>
-                  <button
-                    onClick={() => changeStatus(b.id, "decline")}
-                    style={{ flex: 1 }}
-                  >
+                  <button className="psBtn" onClick={() => changeStatus(b.id, "decline")} style={{ flex: 1 }}>
                     Reject
                   </button>
                 </>
               )}
               {b.status === "confirmed" && (
-                <button
-                  onClick={() => changeStatus(b.id, "done")}
-                  style={{ flex: 1 }}
-                >
+                <button className="psBtn" onClick={() => changeStatus(b.id, "done")} style={{ flex: 1 }}>
                   Mark as done
                 </button>
               )}
@@ -491,25 +410,7 @@ export default function ProviderSchedulePage() {
         ))}
       </div>
 
-      {/* тост снизу */}
-      {toast && (
-        <div
-          style={{
-            position: "fixed",
-            right: 20,
-            bottom: 20,
-            padding: "10px 16px",
-            borderRadius: 999,
-            background: "#222",
-            color: "#fff",
-            fontSize: 14,
-            boxShadow: "0 6px 16px rgba(0,0,0,0.5)",
-            zIndex: 9999,
-          }}
-        >
-          {toast}
-        </div>
-      )}
+      {toast && <div className="psToast">{toast}</div>}
     </>
   );
 }
@@ -538,16 +439,14 @@ function HourCell({ day, hour, items, onPick, onDeleteBusy }: HourCellProps) {
   const cellEnd = new Date(day);
   cellEnd.setHours(hour + 1, 0, 0, 0);
 
-  const inThisCell = items.filter(
-    (it) => it.from < cellEnd && it.to > cellStart
-  );
+  const inThisCell = items.filter((it) => it.from < cellEnd && it.to > cellStart);
 
   return (
     <div
       onClick={onPick}
       style={{
-        borderTop: "1px solid #333",
-        borderLeft: "1px solid #333",
+        borderTop: "1px solid rgba(255,255,255,.06)",
+        borderLeft: "1px solid rgba(255,255,255,.06)",
         minHeight: 52,
         padding: 4,
         cursor: "pointer",
@@ -585,9 +484,7 @@ function SlotChip({ item: it, onDeleteBusy }: SlotChipProps) {
 
   const faded =
     !isBusy &&
-    (it.status === "declined" ||
-      it.status === "cancelled" ||
-      it.status === "canceled");
+    (it.status === "declined" || it.status === "cancelled" || it.status === "canceled");
 
   const bg = isBusy ? "#444444" : getBookingColor(it.status);
 
@@ -603,7 +500,6 @@ function SlotChip({ item: it, onDeleteBusy }: SlotChipProps) {
         minWidth: 70,
       }}
     >
-      {/* tooltip */}
       {hover && (
         <div
           style={{
@@ -642,7 +538,6 @@ function SlotChip({ item: it, onDeleteBusy }: SlotChipProps) {
         </div>
       )}
 
-      {/* сама плашка */}
       <div
         style={{
           fontSize: 12,
@@ -657,9 +552,7 @@ function SlotChip({ item: it, onDeleteBusy }: SlotChipProps) {
         <div>{timeRange}</div>
 
         {!isBusy && it.note && (
-          <div style={{ fontSize: 11, opacity: 0.9, marginTop: 2 }}>
-            {it.note}
-          </div>
+          <div style={{ fontSize: 11, opacity: 0.9, marginTop: 2 }}>{it.note}</div>
         )}
 
         {!isBusy && it.clientUsername && (
@@ -671,6 +564,7 @@ function SlotChip({ item: it, onDeleteBusy }: SlotChipProps) {
               textDecoration: "underline",
               marginTop: 2,
               display: "block",
+              color: "rgba(184,193,255,.95)",
             }}
           >
             @{it.clientUsername}
@@ -735,13 +629,7 @@ function formatInterval(dateISO: string, durationMinutes?: number) {
   const end = new Date(start.getTime() + dur * 60000);
 
   const day = start.toLocaleDateString();
-  const from = start.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const to = end.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const from = start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const to = end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   return `${day} · ${from}–${to}`;
 }

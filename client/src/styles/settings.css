@@ -1,0 +1,198 @@
+/* client/src/styles/settings.css */
+
+.setPage{
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 18px 12px 50px;
+    display: grid;
+    gap: 14px;
+  }
+  
+  .setHeader{
+    display: grid;
+    gap: 6px;
+  }
+  
+  .setTitle{
+    margin: 0;
+    font-size: 28px;
+    letter-spacing: .2px;
+  }
+  
+  .setSub{
+    opacity: .75;
+    font-size: 13px;
+  }
+  
+  .setAlert{
+    border: 1px solid rgba(255,255,255,.10);
+    border-radius: 14px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,.03);
+  }
+  
+  .setAlertErr{
+    border-color: rgba(255,107,107,.35);
+    background: rgba(255,0,0,.06);
+    color: #ff9f9f;
+  }
+  
+  .setGrid{
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
+    align-items: start;
+  }
+  
+  .setCard{
+    border: 1px solid rgba(255,255,255,.10);
+    background: rgba(255,255,255,.03);
+    border-radius: 16px;
+    padding: 14px;
+    display: grid;
+    gap: 10px;
+  }
+  
+  .setCardFull{
+    grid-column: 1 / -1;
+  }
+  
+  .setCardTitle{
+    font-weight: 800;
+    font-size: 14px;
+    opacity: .95;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  
+  .setAvatarRow{
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  
+  .setAvatar{
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.25);
+  }
+  
+  .setAvatarRight{
+    display: grid;
+    gap: 6px;
+  }
+  
+  .setFile{
+    display: grid;
+    gap: 6px;
+  }
+  
+  .setFileInput{
+    width: 260px;
+    max-width: 100%;
+  }
+  
+  .setField{
+    display: grid;
+    gap: 6px;
+  }
+  
+  .setLabel{
+    font-size: 12px;
+    opacity: .8;
+  }
+  
+  .setInput,
+  .setSelect,
+  .setTextarea{
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.25);
+    color: rgba(255,255,255,.92);
+    outline: none;
+  }
+  
+  .setTextarea{
+    min-height: 110px;
+    resize: vertical;
+  }
+  
+  .setInput:focus,
+  .setSelect:focus,
+  .setTextarea:focus{
+    border-color: rgba(184,193,255,.55);
+    box-shadow: 0 0 0 3px rgba(184,193,255,.12);
+  }
+  
+  .setHint{
+    font-size: 12px;
+    opacity: .7;
+  }
+  
+  .setRow2{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  
+  .setMini{
+    margin-top: 4px;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 14px;
+    background: rgba(0,0,0,.18);
+    padding: 10px 12px;
+    display: grid;
+    gap: 8px;
+  }
+  
+  .setMiniRow{
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+  }
+  
+  .setMiniKey{ opacity: .7; }
+  .setMiniVal{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; opacity: .9; }
+  
+  .setFooter{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  
+  .setBtnPrimary{
+    padding: 11px 14px;
+    min-width: 220px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(184,193,255,.20);
+    font-weight: 800;
+    cursor: pointer;
+  }
+  
+  .setBtnPrimary:hover{ background: rgba(184,193,255,.28); }
+  
+  .setFooterHint{
+    font-size: 12px;
+    opacity: .7;
+  }
+  
+  @media (max-width: 900px){
+    .setGrid{
+      grid-template-columns: 1fr;
+    }
+    .setRow2{
+      grid-template-columns: 1fr;
+    }
+  }
+  

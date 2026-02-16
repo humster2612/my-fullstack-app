@@ -86,7 +86,7 @@ export default function PeoplePage() {
           <div>
             <h2 className="mapTitle">Explore providers on the map</h2>
             <div className="mapSub">
-              Drag to move · Use +/- or scroll to zoom · Click pin to open profile
+              How to move? Use scroll to zoom, Click pin to open profile
             </div>
           </div>
         </div>

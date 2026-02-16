@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMe, uploadAvatar, updateMePro } from "../api";
 import { CITY_OPTIONS, type CityOption } from "../locationOptions";
+import "../styles/settings.css";
 
 type Me = {
   id: number | string;
@@ -203,173 +204,199 @@ export default function SettingsPage() {
   if (loading) return <div>Loading settings...</div>;
 
   return (
-    <form
-      onSubmit={submit}
-      style={{ display: "grid", gap: 12 }}
-      autoComplete="off"
-    >
-      <h2>Profile settings</h2>
-
-      {/* Аватар */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-          flexWrap: "wrap",
-        }}
-      >
-        <img
-          src={preview || "https://via.placeholder.com/96"}
-          alt="avatar"
-          width={96}
-          height={96}
-          style={{ borderRadius: "50%", objectFit: "cover" }}
-        />
-        <label style={{ display: "inline-block" }}>
-          <span>Upload avatar</span>
-          <br />
-          <input
-            type="file"
-            accept="image/*"
-            onChange={onFileChange}
-            disabled={uploading}
-          />
-        </label>
-        {uploading && <span>Uploading...</span>}
+    <form onSubmit={submit} className="setPage" autoComplete="off">
+      <div className="setHeader">
+        <h2 className="setTitle">Profile settings</h2>
+        {/* <div className="setSub">Update your profile, map location and pro info.</div> */}
       </div>
-
-      {/* Username */}
-      <label>
-        Username
-        <input
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-          autoComplete="off"
-        />
-      </label>
-
-      {/* Прямая ссылка на аватар (необязательно) */}
-      <label>
-        Avatar URL (optional)
-        <input
-          value={avatarUrl}
-          onChange={(e) => setAvatarUrl(e.target.value)}
-          placeholder="https://..."
-          autoComplete="off"
-        />
-      </label>
-
-      {/* Локация текстом */}
-      <label>
-        Location (text)
-        <input
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          autoComplete="off"
-          placeholder="Prague, Czech Republic"
-        />
-      </label>
-
-      {/* ✅ Город для карты + поиск */}
-      <label>
-        City for map
-        <div style={{ display: "grid", gap: 6 }}>
-          <input
-            value={cityQuery}
-            onChange={(e) => setCityQuery(e.target.value)}
-            placeholder="Search city or country (e.g. Paris, US, Japan...)"
-            autoComplete="off"
+  
+      {err && <div className="setAlert setAlertErr">{err}</div>}
+  
+      <section className="setCard">
+        <div className="setCardTitle">Avatar</div>
+  
+        <div className="setAvatarRow">
+          <img
+            src={preview || "https://via.placeholder.com/96"}
+            alt="avatar"
+            className="setAvatar"
+            width={96}
+            height={96}
           />
-
-          <select value={selectedCityId} onChange={handleCityChange}>
-            <option value="">Not selected</option>
-            {filteredCities.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.city} — {c.countryName}
-              </option>
-            ))}
-          </select>
-
-          <div style={{ fontSize: 12, opacity: 0.7 }}>
-            Showing {filteredCities.length} cities
+  
+          <div className="setAvatarRight">
+            <label className="setFile">
+              <span className="setLabel">Upload avatar</span>
+              <input
+                className="setFileInput"
+                type="file"
+                accept="image/*"
+                onChange={onFileChange}
+                disabled={uploading}
+              />
+            </label>
+  
+            {uploading ? <div className="setHint">Uploading…</div> : <div className="setHint">wybierz odpowiedni format...</div>}
           </div>
         </div>
-      </label>
-
-      {/* Bio */}
-      <label>
-        Bio
-        <textarea
-          value={bio}
-          onChange={(e) => setBio(e.target.value)}
-          rows={4}
-        />
-      </label>
-
-      {/* Ссылки */}
-      <label>
-        Links
-        <input
-          value={links}
-          onChange={(e) => setLinks(e.target.value)}
-          autoComplete="off"
-          placeholder="https://..., https://..."
-        />
-      </label>
-
-      <hr style={{ opacity: 0.2 }} />
-
-      {/* Роль */}
-      <label>
-        Role
-        <select value={role} onChange={(e) => setRole(e.target.value as any)}>
-          <option value="CLIENT">Client</option>
-          <option value="VIDEOGRAPHER">Videographer</option>
-          <option value="PHOTOGRAPHER">Photographer</option>
-        </select>
-      </label>
-
-      {/* Специализация */}
-      <label>
-        Specialization (comma separated)
-        <input
-          value={spec}
-          onChange={(e) => setSpec(e.target.value)}
-          placeholder="weddings, events, promo"
-        />
-      </label>
-
-      {/* Цена за час */}
-      <label>
-        Price per hour
-        <input
-          type="number"
-          value={price ?? ""}
-          onChange={(e) => {
-            const v = e.target.value;
-            setPrice(v === "" ? null : Number(v));
-          }}
-        />
-      </label>
-
-      {/* Видео портфолио */}
-      <label>
-        Portfolio videos
-        <input
-          value={videos}
-          onChange={(e) => setVideos(e.target.value)}
-          placeholder="https://youtu.be/..., https://vimeo.com/..., https://..."
-        />
-      </label>
-
-      <button type="submit" disabled={saving}>
-        {saving ? "Saving..." : "Save"}
-      </button>
-      {err && <div style={{ color: "crimson" }}>{err}</div>}
+      </section>
+  
+      <div className="setGrid">
+        <section className="setCard">
+          <div className="setCardTitle">Basic info</div>
+  
+          <label className="setField">
+            <span className="setLabel">Username</span>
+            <input
+              className="setInput"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              autoComplete="off"
+            />
+          </label>
+  
+          <label className="setField">
+            <span className="setLabel">Avatar URL (optional)</span>
+            <input
+              className="setInput"
+              value={avatarUrl}
+              onChange={(e) => setAvatarUrl(e.target.value)}
+              placeholder="https://..."
+              autoComplete="off"
+            />
+          </label>
+  
+          <label className="setField">
+            <span className="setLabel">Location (text)</span>
+            <input
+              className="setInput"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              autoComplete="off"
+              placeholder="Prague, Czech Republic"
+            />
+          </label>
+  
+          <label className="setField">
+            <span className="setLabel">Bio</span>
+            <textarea
+              className="setTextarea"
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              rows={4}
+            />
+          </label>
+  
+          <label className="setField">
+            <span className="setLabel">Links</span>
+            <input
+              className="setInput"
+              value={links}
+              onChange={(e) => setLinks(e.target.value)}
+              autoComplete="off"
+              placeholder="https://..., https://..."
+            />
+          </label>
+        </section>
+  
+        <section className="setCard">
+          <div className="setCardTitle">Map location</div>
+  
+          <label className="setField">
+            <span className="setLabel">City for map</span>
+  
+            <input
+              className="setInput"
+              value={cityQuery}
+              onChange={(e) => setCityQuery(e.target.value)}
+              placeholder="Search city or country (e.g. Paris, US, Japan...)"
+              autoComplete="off"
+            />
+  
+            <select className="setSelect" value={selectedCityId} onChange={handleCityChange}>
+              <option value="">Not selected</option>
+              {filteredCities.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.city} — {c.countryName}
+                </option>
+              ))}
+            </select>
+  
+            <div className="setHint">Showing {filteredCities.length} cities</div>
+          </label>
+  
+          <div className="setMini">
+            <div className="setMiniRow">
+              <span className="setMiniKey">Latitude</span>
+              <span className="setMiniVal">{typeof lat === "number" ? lat.toFixed(4) : "—"}</span>
+            </div>
+            <div className="setMiniRow">
+              <span className="setMiniKey">Longitude</span>
+              <span className="setMiniVal">{typeof lng === "number" ? lng.toFixed(4) : "—"}</span>
+            </div>
+          </div>
+        </section>
+  
+        <section className="setCard setCardFull">
+          <div className="setCardTitle">Pro profile</div>
+  
+          <div className="setRow2">
+            <label className="setField">
+              <span className="setLabel">Role</span>
+              <select className="setSelect" value={role} onChange={(e) => setRole(e.target.value as any)}>
+                <option value="CLIENT">Client</option>
+                <option value="VIDEOGRAPHER">Videographer</option>
+                <option value="PHOTOGRAPHER">Photographer</option>
+              </select>
+            </label>
+  
+            <label className="setField">
+              <span className="setLabel">Price per hour</span>
+              <input
+                className="setInput"
+                type="number"
+                value={price ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setPrice(v === "" ? null : Number(v));
+                }}
+                placeholder="e.g. 50"
+              />
+            </label>
+          </div>
+  
+          <label className="setField">
+            <span className="setLabel">Specialization </span>
+            <input
+              className="setInput"
+              value={spec}
+              onChange={(e) => setSpec(e.target.value)}
+              placeholder="weddings, events, promo"
+            />
+          </label>
+  
+          <label className="setField">
+            <span className="setLabel">Portfolio videos</span>
+            <input
+              className="setInput"
+              value={videos}
+              onChange={(e) => setVideos(e.target.value)}
+              placeholder="https://youtu.be/..., https://vimeo.com/..., https://..."
+            />
+          </label>
+        </section>
+      </div>
+  
+      <div className="setFooter">
+        <button type="submit" className="setBtnPrimary" disabled={saving}>
+          {saving ? "Saving..." : "Save"}
+        </button>
+       
+      </div>
     </form>
   );
+  
 }
 
 

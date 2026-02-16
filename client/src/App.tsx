@@ -13,6 +13,7 @@ import BookingRequestsPage from "./pages/BookingRequestsPage";
 import MyBookingsPage from "./pages/MyBookingsPage";
 import AdminPage from "./pages/AdminPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import "../src/styles/navbar.css";
 
 
 import { loginUser, registerUser, getMe } from "./api";
@@ -26,7 +27,7 @@ type User = {
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [authChecked, setAuthChecked] = useState(false); // ✅ чтобы не было "мигания" контента
+  const [authChecked, setAuthChecked] = useState(false); 
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -64,43 +65,44 @@ function App() {
     <div style={{ maxWidth: 1200, margin: "32px auto", padding: 16 }}>
 
 
-        <nav
-          style={{
-            display: "flex",
-            gap: 12,
-            marginBottom: 16,
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
+    <nav className="mainNav"
+  // style={{
+  //   display: "flex",
+  //   gap: 12,
+  //   marginBottom: 16,
+  //   alignItems: "center",
+  //   flexWrap: "wrap",
+  // }}
+>
+
           {/* ✅ НЕлогину показываем только Login/Register */}
           {!user ? (
             <>
-              <Link to="/login">Login</Link>
-              <Link to="/register">Register</Link>
+              <Link to="/login">LOGIN</Link>
+              <Link to="/register">REGISTER</Link>
             </>
           ) : (
             <>
-              <Link to="/">Home</Link>
-              <Link to="/people">People</Link>
+              <Link to="/">HOME</Link>
+              <Link to="/people">PEOPLE</Link>
 
-              {user.username ? <Link to={`/profile/${user.username}`}>My profile</Link> : null}
+              {user.username ? <Link to={`/profile/${user.username}`}>MY PROFILE</Link> : null}
 
-              <Link to="/settings">Settings</Link>
-              <Link to="/notifications">🔔 Notifications</Link>
-              <Link to="/create">Create</Link>
+              <Link to="/settings">SETTINGS</Link>
+              <Link to="/notifications">NOTIFICATIONS</Link>
+              <Link to="/create">CREATE POST</Link>
 
               {/* ✅ My bookings всем авторизованным, кроме ADMIN */}
-              {!isAdmin && <Link to="/my-bookings">My bookings</Link>}
+              {!isAdmin && <Link to="/my-bookings">MY BOOKINGS</Link>}
 
-              {isAdmin && <Link to="/admin">Admin</Link>}
+              {isAdmin && <Link to="/admin">ADMIN</Link>}
 
-              {isProvider && <Link to="/booking-requests">Booking requests</Link>}
-              {isProvider && <Link to="/schedule">Schedule</Link>}
+              {isProvider && <Link to="/booking-requests">BOOKING REQUESTS</Link>}
+              {isProvider && <Link to="/schedule">SCHEDULE</Link>}
 
-              <div style={{ marginLeft: "auto" }} />
+              <div className="navSpacer" />
               <button onClick={handleLogout} style={{ cursor: "pointer" }}>
-                Logout
+                LOGOUT
               </button>
             </>
           )}
@@ -194,9 +196,7 @@ function Login({ onLoggedIn }: { onLoggedIn: (u: User | null) => void }) {
         <div className="authVisual">
           <h1>Welcome back</h1>
           <p>Login to access your feed, bookings, portfolio and notifications.</p>
-          <p style={{ opacity: 0.7, fontSize: 13 }}>
-            Tip: use a strong password and keep your profile updated ✨
-          </p>
+         
         </div>
 
         <form onSubmit={submit} autoComplete="off" className="authForm">
