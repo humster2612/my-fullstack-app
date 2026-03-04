@@ -331,7 +331,7 @@ model Notification {
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  // ✅ эти relation names должны совпадать с полями в User
+
   user     User  @relation("UserNotifications", fields: [userId], references: [id])
   fromUser User? @relation("UserNotificationsFrom", fields: [fromUserId], references: [id])
 

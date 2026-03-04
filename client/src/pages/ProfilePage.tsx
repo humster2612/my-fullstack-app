@@ -11,7 +11,7 @@ import {
   getUserPosts,
   getProviderReviews,
 
-  // ✅ NEW
+
   getUserPortfolio,
   createPortfolioItem,
   deletePortfolioItem,
@@ -33,17 +33,17 @@ type PublicUser = {
   specialization?: string[];
   pricePerHour?: number | null;
 
-  // legacy
+
   portfolioVideos?: string[];
 
-  // ✅ NEW
+
   providerPortfolio?: ProviderPortfolioItem[];
 };
 
 type Post = {
   id: number | string;
   imageUrl?: string;
-  // ✅ FIX: разрешаем null (потому что API возвращает null)
+  
   videoUrl?: string | null;
   caption: string;
   location: string;
@@ -77,18 +77,18 @@ function isValidHttpUrl(url: string) {
   }
 }
 
-// YouTube/Vimeo -> embed
+
 function toEmbedUrl(url: string) {
   const u = url.trim();
 
-  // YouTube
+
   const yt1 = u.match(/youtube\.com\/watch\?v=([^&]+)/i);
   const yt2 = u.match(/youtu\.be\/([^?&]+)/i);
   const yt3 = u.match(/youtube\.com\/shorts\/([^?&]+)/i);
   const ytId = yt1?.[1] || yt2?.[1] || yt3?.[1];
   if (ytId) return `https://www.youtube.com/embed/${ytId}`;
 
-  // Vimeo
+ 
   const vimeo = u.match(/vimeo\.com\/(\d+)/i);
   if (vimeo?.[1]) return `https://player.vimeo.com/video/${vimeo[1]}`;
 
@@ -154,12 +154,12 @@ export default function ProfilePage() {
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsErr, setReviewsErr] = useState<string | null>(null);
 
-  // ✅ ProviderPortfolio state
+
   const [portfolio, setPortfolio] = useState<ProviderPortfolioItem[] | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [portfolioErr, setPortfolioErr] = useState<string | null>(null);
 
-  // ✅ Add form (only for provider + my profile)
+
   const [ppKind, setPpKind] = useState<"IMAGE" | "VIDEO" | "LINK">("VIDEO");
   const [ppTitle, setPpTitle] = useState("");
   const [ppUrl, setPpUrl] = useState("");
@@ -186,7 +186,7 @@ export default function ProfilePage() {
     );
   }
 
-  // Загружаем публичный профиль + посты
+
   useEffect(() => {
     if (!username) return;
     (async () => {
@@ -206,7 +206,7 @@ export default function ProfilePage() {
     })();
   }, [username]);
 
-  // Кто я (me)
+
   useEffect(() => {
     (async () => {
       try {
@@ -218,7 +218,7 @@ export default function ProfilePage() {
     })();
   }, []);
 
-  // Статус подписки
+
   useEffect(() => {
     (async () => {
       if (!meId || !user || meId === user.id) return;
@@ -229,7 +229,7 @@ export default function ProfilePage() {
     })();
   }, [meId, user]);
 
-  // ✅ Reviews for provider
+
   useEffect(() => {
     if (!username) return;
 
@@ -251,7 +251,7 @@ export default function ProfilePage() {
     })();
   }, [username, user?.role]);
 
-  // ✅ ProviderPortfolio (public)
+
   useEffect(() => {
     if (!username) return;
 
@@ -432,7 +432,7 @@ export default function ProfilePage() {
 
           {user.pricePerHour ? (
             <p>
-              <b>Price per hour:</b> {user.pricePerHour} €
+              <b>Price:</b> {user.pricePerHour} €
             </p>
           ) : null}
 
@@ -632,7 +632,7 @@ export default function ProfilePage() {
         className="profileGridMedia"
         loading="lazy"
         onError={(e) => {
-          // если картинка не загрузилась — скрываем <img> и показываем "+"
+
           e.currentTarget.style.display = "none";
           const parent = e.currentTarget.parentElement;
           if (parent && !parent.querySelector(".profileGridEmpty")) {

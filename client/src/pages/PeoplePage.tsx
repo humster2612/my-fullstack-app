@@ -42,13 +42,11 @@ export default function PeoplePage() {
 
   useEffect(() => {
     load(true);
-    // eslint-disable-next-line
   }, []);
 
   useEffect(() => {
     const t = setTimeout(() => load(true), 300);
     return () => clearTimeout(t);
-    // eslint-disable-next-line
   }, [q]);
 
   const canLoadMore = useMemo(() => cursor !== null && !loading, [cursor, loading]);
@@ -80,7 +78,6 @@ export default function PeoplePage() {
 
   return (
     <div className="peoplePage">
-      {/* ✅ MAP CARD */}
       <div className="mapCard">
         <div className="mapHeader">
           <div>
@@ -91,13 +88,11 @@ export default function PeoplePage() {
           </div>
         </div>
 
-        {/* ✅ fixed viewport so map never “runs away” */}
         <div className="mapViewport">
           <WorldProvidersMap />
         </div>
       </div>
 
-      {/* ✅ LIST */}
       <h2 style={{ marginTop: 12 }}>People</h2>
 
       <input

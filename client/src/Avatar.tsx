@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-// компактный SVG как data URL — без внешних доменов
+
 const DEFAULT_AVATAR =
   'data:image/svg+xml;utf8,' +
   encodeURIComponent(

@@ -8,8 +8,8 @@ function isProviderRole(role) {
   }
   
   /**
-   * Логика смены статуса бронирования (вынесена из PATCH /api/bookings/:id)
-   * Возвращает новый статус или null если действие запрещено/некорректно.
+   * Логика смены статуса бронирования 
+   * Возвращает новый статус или null если действие запрещен.
    */
   function resolveNextBookingStatus(currentStatus, action, isClient, isProvider) {
     let nextStatus = currentStatus;

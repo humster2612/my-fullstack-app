@@ -14,9 +14,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// Конфиг как функция: Vite сам передаёт сюда mode ("development" | "production")
+
 export default defineConfig(({ mode }) => ({
-  // В деве base = "/", в проде — "/my-fullstack-app/"
+ 
   base: mode === "production" ? "/my-fullstack-app/" : "/",
   plugins: [react()],
 }));

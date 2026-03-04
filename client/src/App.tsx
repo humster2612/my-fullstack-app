@@ -1,4 +1,3 @@
-// client/src/App.tsx
 import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Link, useNavigate, Navigate } from "react-router-dom";
 
@@ -57,7 +56,6 @@ function App() {
   const isAdmin = user?.role === "ADMIN";
   const isProvider = user?.role === "VIDEOGRAPHER" || user?.role === "PHOTOGRAPHER";
 
-  // ✅ пока не проверили токен — не рендерим ничего, чтобы не показывались страницы на секунду
   if (!authChecked) return null;
 
   return (
@@ -75,7 +73,6 @@ function App() {
   // }}
 >
 
-          {/* ✅ НЕлогину показываем только Login/Register */}
           {!user ? (
             <>
               <Link to="/login">LOGIN</Link>
@@ -92,7 +89,6 @@ function App() {
               <Link to="/notifications">NOTIFICATIONS</Link>
               <Link to="/create">CREATE POST</Link>
 
-              {/* ✅ My bookings всем авторизованным, кроме ADMIN */}
               {!isAdmin && <Link to="/my-bookings">MY BOOKINGS</Link>}
 
               {isAdmin && <Link to="/admin">ADMIN</Link>}
@@ -108,7 +104,6 @@ function App() {
           )}
         </nav>
 
-        {/* ✅ если НЕ авторизован — доступны только /login и /register, всё остальное -> /login */}
         {!user ? (
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
@@ -130,7 +125,6 @@ function App() {
             <Route path="/booking-requests" element={<BookingRequestsPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
 
-            {/* ✅ Админу запрещаем MyBookings даже по прямой ссылке */}
             <Route
               path="/my-bookings"
               element={isAdmin ? <Navigate to="/admin" replace /> : <MyBookingsPage />}
@@ -141,7 +135,6 @@ function App() {
               element={user.role === "ADMIN" ? <AdminPage /> : <Navigate to="/" replace />}
             />
 
-            {/* ✅ если залогинен и случайно пошёл на /login — вернём на / */}
             <Route path="/login" element={<Navigate to="/" replace />} />
             <Route path="/register" element={<Navigate to="/" replace />} />
 
@@ -153,8 +146,8 @@ function App() {
   );
 }
 
-/* ====== Auth forms ====== */
-/* ====== Auth forms ====== */
+
+/* ====== auth form ====== */
 function Login({ onLoggedIn }: { onLoggedIn: (u: User | null) => void }) {
   const nav = useNavigate();
   const [email, setEmail] = useState<string>("");
@@ -183,7 +176,7 @@ function Login({ onLoggedIn }: { onLoggedIn: (u: User | null) => void }) {
       setErr(
         e?.response?.data?.error ||
           e?.response?.data?.message ||
-          "Неверные данные для входа"
+          "Nieprawidlowe dane"
       );
     } finally {
       setLoading(false);

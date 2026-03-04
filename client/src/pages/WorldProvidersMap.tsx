@@ -1,4 +1,3 @@
-// client/src/pages/WorldProvidersMap.tsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -21,7 +20,7 @@ export default function WorldProvidersMap() {
   const [hoverId, setHoverId] = useState<number | null>(null);
 
   const [zoom, setZoom] = useState(1.5);
-  const [center, setCenter] = useState<[number, number]>([10, 50]); // Европа по центру (lng, lat)
+  const [center, setCenter] = useState<[number, number]>([10, 50]); 
 
   const navigate = useNavigate();
 
@@ -45,7 +44,7 @@ export default function WorldProvidersMap() {
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
-      {/* Zoom buttons (внутри карты, не ломают layout) */}
+
       <div
         style={{
           position: "absolute",
@@ -125,7 +124,7 @@ export default function WorldProvidersMap() {
         </ZoomableGroup>
       </ComposableMap>
 
-      {/* tooltip внизу карты */}
+     
       {(hovered || loading || err) && (
         <div
           style={{

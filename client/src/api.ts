@@ -1,4 +1,3 @@
-// client/src/api.ts
 import axios from "axios";
 
 export const api = axios.create({
@@ -16,7 +15,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-/* AUTH */
+
 export type LoginPayload = { email: string; password: string };
 export type RegisterPayload = { email: string; password: string; username?: string };
 
@@ -33,7 +32,7 @@ export async function getMe() {
   return data;
 }
 
-/* PROFILE */
+
 export async function getUserByUsername(username: string) {
   const { data } = await api.get(`/api/users/${username}`);
   return data;
@@ -61,7 +60,7 @@ export async function uploadAvatar(file: File) {
   return data as { url: string };
 }
 
-/* PEOPLE */
+
 export async function listUsers(params?: { q?: string; limit?: number; cursor?: number | string }) {
   const { q = "", limit = 20, cursor } = params || {};
   const { data } = await api.get("/api/users", { params: { q, limit, cursor } });
@@ -80,7 +79,7 @@ export async function listUsers(params?: { q?: string; limit?: number; cursor?: 
   };
 }
 
-/* FOLLOW */
+
 export async function getFollowStatus(userId: number | string) {
   const { data } = await api.get(`/api/follow/status/${userId}`);
   return data as { following: boolean };
@@ -94,7 +93,7 @@ export async function unfollowUser(userId: number | string) {
   return data as { ok: true };
 }
 
-/* POSTS */
+
 export async function createPost(file: File, payload: { caption?: string; location?: string }) {
   const fd = new FormData();
   fd.append("file", file);
@@ -131,7 +130,7 @@ export async function getUserPosts(username: string) {
   };
 }
 
-/* FEED */
+
 export async function getFeed(params?: { cursor?: number | string; limit?: number }) {
   const { cursor, limit = 10 } = params || {};
   const { data } = await api.get("/api/feed", { params: { cursor, limit } });
@@ -160,7 +159,7 @@ export async function getFeed(params?: { cursor?: number | string; limit?: numbe
   };
 }
 
-/* LIKES + COMMENTS */
+
 export async function toggleLike(postId: number | string) {
   const { data } = await api.post(`/api/posts/${postId}/like`);
   return data as { liked: boolean; count: number };
@@ -217,7 +216,7 @@ export async function getProviderReviews(username: string) {
   };
 }
 
-/* Profile extensions */
+
 export type UpdateMeProPayload = {
   role?: "CLIENT" | "VIDEOGRAPHER" | "PHOTOGRAPHER";
   specialization?: string[];
@@ -323,6 +322,10 @@ export async function getProvidersMap() {
   return data as { providers: ProviderMapItem[] };
 }
 
+
+
+
+
 /* ADMIN */
 export type Announcement = {
   id: number;
@@ -423,7 +426,8 @@ export async function adminDeletePost(postId: number) {
   return data;
 }
 
-/* ✅ Provider Portfolio (NEW) */
+
+
 export type ProviderPortfolioItem = {
   id: number;
   kind: "IMAGE" | "VIDEO" | "LINK";

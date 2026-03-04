@@ -1,11 +1,10 @@
-// client/src/pages/BookProviderPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import "../styles/booking.css";
 import {
   getProviderUnavailability,
   getProviderIdByUsername,
-  createBookingByDate, // отправляем start/end + note
+  createBookingByDate, 
 } from "../api";
 
 type Busy = { id: number; startsAt: string; endsAt: string };
@@ -18,7 +17,7 @@ type Booking = {
 
 function startOfWeek(d = new Date()) {
   const x = new Date(d);
-  const day = (x.getDay() + 6) % 7; // Mon=0
+  const day = (x.getDay() + 6) % 7; 
   x.setHours(0, 0, 0, 0);
   x.setDate(x.getDate() - day);
   return x;
@@ -29,7 +28,6 @@ function addDays(d: Date, i: number) {
   return x;
 }
 
-// helper: "2025-11-14" + "09:00" → Date
 function combine(day: string, hm: string) {
   return new Date(`${day}T${hm}:00`);
 }
@@ -38,13 +36,11 @@ export default function BookProviderPage() {
   const { username } = useParams();
   const [weekStart, setWeekStart] = useState<Date>(startOfWeek());
 
-  // данные календаря
 
-
-  // форма брони
-  const [day, setDay] = useState(""); // yyyy-mm-dd
-  const [from, setFrom] = useState("09:00"); // HH:MM
-  const [duration, setDuration] = useState(60); // minutes
+ 
+  const [day, setDay] = useState(""); 
+  const [from, setFrom] = useState("09:00"); 
+  const [duration, setDuration] = useState(60); 
   const [note, setNote] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -110,7 +106,6 @@ export default function BookProviderPage() {
     return list.sort((a, b) => a.from.getTime() - b.from.getTime());
   }, [busy, bookings]);
 
-  // клик по пустой ячейке — автозаполнить форму (start + duration 60)
 
   function pickSlot(d: Date, hour: number) {
     const dt = new Date(d);
@@ -181,7 +176,6 @@ export default function BookProviderPage() {
   
         <div className="calendarWrap">
           <div className="calendarGrid">
-            {/* header пустой слева */}
             <div className="calHead calHeadEmpty" />
   
             {weekDays.map((d) => (
@@ -193,7 +187,6 @@ export default function BookProviderPage() {
               </div>
             ))}
   
-            {/* часы + клетки */}
             {Array.from({ length: 12 }, (_, h) => h + 8).map((h) => (
               <div key={`row-${h}`} style={{ display: "contents" }}>
                 <div className="calTime">{h}:00</div>
@@ -216,12 +209,10 @@ export default function BookProviderPage() {
         {msg && <div className="okText">{msg}</div>}
       </div>
   
-      {/* Правая панель */}
       <aside className="bookRight">
         <form onSubmit={submit} className="bookCard">
           <div className="bookCardTop">
             <h3 className="bookCardTitle">Book this spot</h3>
-            {/* <div className="bookCardHint">Pick a slot in the calendar or fill the form.</div> */}
           </div>
   
           <div className="formGrid">
@@ -300,26 +291,25 @@ export default function BookProviderPage() {
   );
   
 
-/* ---------- цвета статусов ---------- */
+
 
 function getBookingColor(status?: string) {
   switch (status) {
     case "confirmed":
-      return "#2e7d32"; // зелёный
+      return "#2e7d32"; 
     case "pending":
-      return "#5b458a"; // фиолетовый
+      return "#5b458a"; 
     case "declined":
     case "cancelled":
     case "canceled":
-      return "#555555"; // серый
+      return "#555555"; 
     case "done":
-      return "#1976d2"; // синий
+      return "#1976d2";
     default:
       return "#5b458a";
   }
 }
 
-/* ---------- ячейка часа ---------- */
 
 function HourCell({
   day,

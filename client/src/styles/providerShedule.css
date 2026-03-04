@@ -81,9 +81,8 @@
     background: rgba(0,0,0,.15);
   }
   
-  /* Right panel */
   .psRight{
-    position: static;   /* обычное поведение */
+    position: static;   
   align-self: start;
   }
   
@@ -154,7 +153,6 @@
   .psMuted{ margin-top:10px; opacity:.8; }
   .psMutedSmall{ font-size:13px; opacity:.8; }
   
-  /* Requests */
   .psRequests{
     max-width: 1180px;
     margin: 18px auto 0;
@@ -190,7 +188,7 @@
   
   .psReqActions{ display:flex; gap:8px; margin-top:4px; }
   
-  /* Toast */
+
   .psToast{
     position: fixed;
     right: 20px;
@@ -204,7 +202,7 @@
     z-index: 9999;
   }
   
-  /* Mobile */
+
   @media (max-width: 980px){
     .psLayout{ grid-template-columns: 1fr; }
     .psRight{ position: static; }

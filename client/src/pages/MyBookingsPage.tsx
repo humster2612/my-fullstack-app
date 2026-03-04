@@ -1,4 +1,3 @@
-// client/src/pages/MyBookingsPage.tsx
 import { useEffect, useState } from "react";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
@@ -15,11 +14,11 @@ type MyBooking = {
     avatarUrl?: string | null;
     role?: string;
   };
-  // 👇 важно: backend должен вернуть это поле
+
+
   review?: { id: number; rating: number } | null;
 };
 
-// универсальный helper с нормальными типами заголовков
 async function request(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem("token");
 
@@ -33,7 +32,6 @@ async function request(path: string, options: RequestInit = {}) {
   return fetch(API_URL + path, { ...options, headers });
 }
 
-// форматируем дату + ВРЕМЯ БЕЗ СЕКУНД
 function formatInterval(dateISO: string, durationMinutes?: number) {
   const start = new Date(dateISO);
   const dur = Math.max(1, durationMinutes ?? 60);
@@ -119,7 +117,6 @@ export default function MyBookingsPage() {
         return;
       }
 
-      // ✅ локально отмечаем, что отзыв уже есть
       setItems((arr) =>
         arr.map((b) =>
           b.id === reviewBookingId ? { ...b, review: { id: data.review?.id ?? 1, rating } } : b
@@ -189,7 +186,6 @@ export default function MyBookingsPage() {
             <div style={{ fontSize: 13, opacity: 0.9 }}>Note: {b.note}</div>
           )}
 
-          {/* ===== Review CTA ===== */}
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             {b.status === "done" && !b.review?.id && (
               <button
@@ -209,14 +205,13 @@ export default function MyBookingsPage() {
 
             {b.status === "done" && !!b.review?.id && (
               <div style={{ fontSize: 13, opacity: 0.85 }}>
-                ✅ Review sent {typeof b.review?.rating === "number" ? `· ${b.review.rating}⭐` : ""}
+                Review sent {typeof b.review?.rating === "number" ? `· ${b.review.rating}⭐` : ""}
               </div>
             )}
           </div>
         </div>
       ))}
 
-      {/* ===== Review modal ===== */}
       {reviewOpen && (
         <div
           onClick={() => !savingReview && setReviewOpen(false)}

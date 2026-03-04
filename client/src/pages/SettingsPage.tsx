@@ -110,7 +110,6 @@ export default function SettingsPage() {
             setLat(found.lat);
             setLng(found.lng);
 
-            // ✅ чтобы поиск/селект выглядели логично
             setCityQuery(`${found.city}`);
           }
         }
@@ -141,7 +140,6 @@ export default function SettingsPage() {
     }
   }
 
-  // смена города в селекте
   function handleCityChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const value = e.target.value as CityOption["id"] | "";
     setSelectedCityId(value);
@@ -150,7 +148,6 @@ export default function SettingsPage() {
     if (found) {
       setLat(found.lat);
       setLng(found.lng);
-      // авто-заполняем текстовое поле Location
       setLocation(formatLocationFromCity(found));
     } else {
       setLat(null);
@@ -207,7 +204,6 @@ export default function SettingsPage() {
     <form onSubmit={submit} className="setPage" autoComplete="off">
       <div className="setHeader">
         <h2 className="setTitle">Profile settings</h2>
-        {/* <div className="setSub">Update your profile, map location and pro info.</div> */}
       </div>
   
       {err && <div className="setAlert setAlertErr">{err}</div>}
@@ -339,7 +335,8 @@ export default function SettingsPage() {
         </section>
   
         <section className="setCard setCardFull">
-          <div className="setCardTitle">Pro profile</div>
+          <div className="setCardTitle">Details
+          </div>
   
           <div className="setRow2">
             <label className="setField">
@@ -382,7 +379,7 @@ export default function SettingsPage() {
               className="setInput"
               value={videos}
               onChange={(e) => setVideos(e.target.value)}
-              placeholder="https://youtu.be/..., https://vimeo.com/..., https://..."
+              placeholder="https://youtu.be/..."
             />
           </label>
         </section>
@@ -390,6 +387,7 @@ export default function SettingsPage() {
   
       <div className="setFooter">
         <button type="submit" className="setBtnPrimary" disabled={saving}>
+          
           {saving ? "Saving..." : "Save"}
         </button>
        

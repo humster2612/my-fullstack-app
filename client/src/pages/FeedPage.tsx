@@ -130,7 +130,6 @@ export default function FeedPage() {
 
   useEffect(() => {
     load(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function onToggleLike(postId: number | string) {
@@ -183,7 +182,7 @@ export default function FeedPage() {
         reason,
         message,
       });
-      showOk("Report sent ✅");
+      showOk("Report sent ");
     } catch (e: any) {
       showErr(e?.response?.data?.error || e?.message || "Report failed");
     }
@@ -201,7 +200,7 @@ export default function FeedPage() {
         reason,
         message,
       });
-      showOk("Report sent ✅");
+      showOk("Report sent ");
     } catch (e: any) {
       showErr(e?.response?.data?.error || e?.message || "Report failed");
     }
@@ -211,9 +210,7 @@ export default function FeedPage() {
 
   return (
     <div className="feedLayout">
-      {/* LEFT колонка: лента */}
       <div className="feedMain">
-        {/* <h1 className="feedTitle">Home</h1> */}
   
         {flash && (
           <div className={`flash ${flash.type === "ok" ? "flashOk" : "flashErr"}`}>
@@ -333,7 +330,6 @@ export default function FeedPage() {
         {loading && <div>Loading...</div>}
       </div>
   
-      {/* RIGHT колонка: объявления */}
       <aside className="feedRight">
         {!!anns.length && (
           <div className="annCard">

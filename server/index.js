@@ -1,4 +1,3 @@
-// server/index.js
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
@@ -22,6 +21,7 @@ function getPublicBaseUrl(req) {
 }
 
 /* -------------------- CORS -------------------- */
+
 const isProd = process.env.NODE_ENV === "production";
 app.use(express.json());
 app.use(
@@ -31,6 +31,9 @@ app.use(
   })
 );
 
+
+
+
 /* --------------- STATIC (uploads) -------------- */
 const uploadsRoot = path.join(__dirname, "uploads");
 const avatarsDir = path.join(uploadsRoot, "avatars");
@@ -39,10 +42,13 @@ fs.mkdirSync(avatarsDir, { recursive: true });
 fs.mkdirSync(postsDir, { recursive: true });
 app.use("/uploads", express.static(uploadsRoot));
 
-/* ----------------- Multer (media) ------------- */
+
+
+
+/* ----------------mediф ------------- */
 const fileFilter = (req, file, cb) => {
   const okImage = /^image\/(png|jpe?g|webp|gif)$/i.test(file.mimetype);
-  const okVideo = /^video\/(mp4|webm|quicktime)$/i.test(file.mimetype); // mp4, webm, mov
+  const okVideo = /^video\/(mp4|webm|quicktime)$/i.test(file.mimetype); 
   if (okImage || okVideo) cb(null, true);
   else cb(new Error("Only image/video files are allowed"));
 };
@@ -74,10 +80,14 @@ const uploadPost = multer({
   limits: { fileSize: 50 * 1024 * 1024 },
 });
 
-/* ---------------- test ---------------- */
-app.get("/api/hello", (req, res) => res.json({ message: "Привет с backend 👋" }));
+
+
+app.get("/api/hello", (req, res) => res.json({ message: "Hello z backendu" }));
+
+
 
 /* --------------- auth middleware --------------- */
+
 async function auth(req, res, next) {
   const h = req.headers.authorization || "";
   const token = h.startsWith("Bearer ") ? h.slice(7) : null;
@@ -177,6 +187,7 @@ app.patch("/api/notifications/:id/read", auth, async (req, res) => {
 
 
 /* ------------------- AUTH ---------------------- */
+
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { email, password, username } = req.body;
@@ -223,6 +234,7 @@ app.post("/api/auth/login", async (req, res) => {
 });
 
 /* ------------------- ANNOUNCEMENTS ------------------- */
+
 app.get("/api/announcements", async (req, res) => {
   try {
     const items = await prisma.announcement.findMany({
@@ -246,6 +258,7 @@ app.get("/api/announcements", async (req, res) => {
 });
 
 /* ===== ADMIN: announcements + logs ===== */
+
 app.get("/api/admin/announcements", auth, adminOnly, async (req, res) => {
   try {
     const items = await prisma.announcement.findMany({
@@ -372,6 +385,7 @@ app.get("/api/admin/logs", auth, adminOnly, async (req, res) => {
 });
 
 /* ------------------ PROFILE -------------------- */
+
 app.get("/api/users/me", auth, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
@@ -509,6 +523,7 @@ app.get("/api/users/:username", async (req, res) => {
 });
 
 /* ------------------ PEOPLE --------------------- */
+
 app.get("/api/users", async (req, res) => {
   try {
     const q = (req.query.q || "").toString().trim();
@@ -675,7 +690,7 @@ app.post("/api/posts/:id/like", auth, async (req, res) => {
     } else {
       await prisma.like.create({ data: { userId: req.userId, postId } });
 
-      // ✅ notify owner (not self)
+   
       if (post.authorId !== req.userId) {
         await prisma.notification.create({
           data: {
@@ -794,6 +809,7 @@ app.delete("/api/comments/:id", auth, async (req, res) => {
 });
 
 /* ------------------- FEED ------------------- */
+
 app.get("/api/feed", auth, async (req, res) => {
   try {
     const limitRaw = parseInt(String(req.query.limit || ""), 10);
@@ -920,6 +936,7 @@ app.delete("/api/follow/:userId", auth, async (req, res) => {
 });
 
 /* ------------------ PROVIDERS MAP ------------------- */
+
 app.get("/api/providers/map", async (req, res) => {
   try {
     const providers = await prisma.user.findMany({
@@ -956,6 +973,7 @@ app.get("/api/providers/map", async (req, res) => {
 });
 
 /* ------------------ PROVIDER ID BY USERNAME ------------------- */
+
 app.get("/api/provider-id/:username", async (req, res) => {
   try {
     const u = await prisma.user.findUnique({
@@ -1235,10 +1253,10 @@ app.get("/api/providers/:username/reviews", async (req, res) => {
 function mapPortfolioItem(it) {
   return {
     id: it.id,
-    kind: it.type, // IMAGE/VIDEO/LINK
+    kind: it.type, 
     title: it.title ?? null,
     url: it.url,
-    thumbUrl: null, // в твоей схеме нет thumbUrl
+    thumbUrl: null, 
     description: it.description ?? null,
     order: it.order ?? 0,
     createdAt: it.createdAt,
@@ -1405,7 +1423,10 @@ async function createReportHandler(req, res) {
 app.post("/api/reports", auth, createReportHandler);
 app.post("/api/report", auth, createReportHandler);
 
+
+
 /* ------------------- ADMIN: reports/posts/users moderation ------------------- */
+
 app.get("/api/admin/reports", auth, adminOnly, async (req, res) => {
   try {
     const status = req.query.status ? String(req.query.status) : null;
@@ -1477,20 +1498,20 @@ app.get("/api/admin/posts", auth, adminOnly, async (req, res) => {
   }
 });
 
-// ✅ FIX: delete post without FK errors (transaction)
+
 app.delete("/api/admin/posts/:id", auth, adminOnly, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!id || Number.isNaN(id)) return res.status(400).json({ error: "Invalid post id" });
 
     await prisma.$transaction(async (tx) => {
-      // notifications linked to post
+   
       await tx.notification.deleteMany({ where: { postId: id } });
 
-      // reports linked to post
+
       await tx.report.deleteMany({ where: { postId: id } });
 
-      // find comment ids
+
       const comments = await tx.comment.findMany({
         where: { postId: id },
         select: { id: true },

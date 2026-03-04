@@ -1,4 +1,3 @@
-// client/src/pages/AdminPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
   adminListAnnouncements,
@@ -15,6 +14,7 @@ import {
 } from "../api";
 
 import type { Announcement, AdminLogItem } from "../api";
+import "../styles/admin.css";
 
 type ModPost = {
   id: number;
@@ -80,15 +80,12 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
-  // create announcement form
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [isActive, setIsActive] = useState(true);
 
-  // busy for buttons (чтобы не было двойных кликов)
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
-  // reports filter
   const [reportStatus, setReportStatus] = useState<"OPEN" | "RESOLVED">("OPEN");
 
   const isBusy = (key: string) => busyKey === key;
@@ -132,7 +129,6 @@ export default function AdminPage() {
       setReports(r.reports || []);
     } catch (e: any) {
       console.error("refreshReportsOnly error:", e);
-      // ✅ НЕ alert здесь — чтобы не бесило пользователя
       setErr(e?.response?.data?.error || e?.message || "Failed to load reports");
     }
   }
@@ -148,13 +144,13 @@ export default function AdminPage() {
 
   useEffect(() => {
     loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     refreshReportsOnly();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportStatus]);
+
+
 
   // ---------------- Announcements ----------------
   async function onCreateAnn() {
@@ -221,7 +217,8 @@ export default function AdminPage() {
     }
   }
 
-  // ---------------- Moderation: Posts ----------------
+
+
   async function onAdminDeletePost(postId: number) {
     if (!confirm("Delete post?")) return;
 
@@ -232,16 +229,12 @@ export default function AdminPage() {
     try {
       await adminDeletePost(postId);
 
-      // ✅ убираем из списка постов
       setModPosts((prev) => prev.filter((p) => p.id !== postId));
-
-      // ✅ и убираем связанные репорты (чтобы не было кликов по "мертвым" репортам)
       setReports((prev) => prev.filter((r) => r.postId !== postId));
 
       const l = await adminGetLogs();
       setLogs(l.logs || []);
     } catch (e: any) {
-      // из-за фикса на сервере 404 уже не будет.
       alert(e?.response?.data?.error || "Delete post failed");
     } finally {
       setBusyKey(null);
@@ -258,7 +251,7 @@ export default function AdminPage() {
     setBusyKey(key);
     try {
       await adminWarnUser(userId, text.trim());
-      alert("Warning sent ✅");
+      alert("Warning sent ");
 
       const l = await adminGetLogs();
       setLogs(l.logs || []);
@@ -285,7 +278,7 @@ export default function AdminPage() {
     setBusyKey(key);
     try {
       await adminBanUser(userId, days);
-      alert("User banned ✅");
+      alert("User banned ");
 
       await refreshPostsOnly();
       const l = await adminGetLogs();
@@ -296,6 +289,10 @@ export default function AdminPage() {
       setBusyKey(null);
     }
   }
+
+
+
+
 
   // ---------------- Reports ----------------
   function inferTargetUserId(r: ReportItem): number | null {
@@ -315,7 +312,6 @@ export default function AdminPage() {
     try {
       await adminResolveReport(reportId);
 
-      // ✅ если мы смотрим OPEN — удаляем из списка сразу
       if (reportStatus === "OPEN") {
         setReports((prev) => prev.filter((x) => x.id !== reportId));
       } else {
@@ -325,7 +321,6 @@ export default function AdminPage() {
       const l = await adminGetLogs();
       setLogs(l.logs || []);
     } catch (e: any) {
-      // из-за фикса на сервере 404 уже не будет.
       alert(e?.response?.data?.error || "Resolve failed");
     } finally {
       setBusyKey(null);
@@ -334,69 +329,111 @@ export default function AdminPage() {
 
   const tabButtons = useMemo(
     () => (
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button type="button" onClick={() => setTab("ann")} disabled={tab === "ann"}>
-          Announcements
-        </button>
-        <button type="button" onClick={() => setTab("mod")} disabled={tab === "mod"}>
-          Moderation
-        </button>
-        <button type="button" onClick={() => setTab("reports")} disabled={tab === "reports"}>
-          Reports
-        </button>
-        <button type="button" onClick={() => setTab("logs")} disabled={tab === "logs"}>
-          AdminLog
-        </button>
+      <div className="adTabsRow">
+        <div className="adTabs">
+          <button className={`adTab ${tab === "ann" ? "active" : ""}`} type="button" onClick={() => setTab("ann")}>
+            Announcements
+          </button>
+          <button className={`adTab ${tab === "mod" ? "active" : ""}`} type="button" onClick={() => setTab("mod")}>
+            Moderation
+          </button>
+          <button className={`adTab ${tab === "reports" ? "active" : ""}`} type="button" onClick={() => setTab("reports")}>
+            Reports
+          </button>
+          <button className={`adTab ${tab === "logs" ? "active" : ""}`} type="button" onClick={() => setTab("logs")}>
+            AdminLog
+          </button>
+        </div>
 
-        <div style={{ marginLeft: "auto" }}>
-          <button type="button" onClick={loadAll}>
+        <div className="adTabsRight">
+          <button className="adBtn" type="button" onClick={loadAll}>
             Refresh
           </button>
         </div>
       </div>
     ),
-    [tab] // eslint-disable-line react-hooks/exhaustive-deps
+    [tab] 
+  );
+
+  const reportPosts = useMemo(
+    () => reports.filter((r) => r.targetType === "POST" && r.postId),
+    [reports]
+  );
+  const reportOther = useMemo(
+    () => reports.filter((r) => r.targetType !== "POST"),
+    [reports]
   );
 
   return (
-    <div style={{ display: "grid", gap: 12, maxWidth: 980 }}>
-      <h2>Admin</h2>
-
-      {err && <div style={{ color: "crimson" }}>{err}</div>}
-      {loading && <div>Loading…</div>}
+    <div className="adWrap">
+      <div className="adHeader">
+        <h2 className="adTitle">Admin</h2>
+        {err && <div className="adErr">{err}</div>}
+        {loading && <div className="adMuted">Loading…</div>}
+      </div>
 
       {tabButtons}
 
+
+
+
+
       {/* ------------------- ANNOUNCEMENTS ------------------- */}
       {tab === "ann" && (
-        <div style={{ display: "grid", gap: 12 }}>
-          <div style={{ border: "1px solid #333", borderRadius: 12, padding: 12, display: "grid", gap: 8 }}>
-            <h3 style={{ margin: 0 }}>Create announcement</h3>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" />
-            <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Body" rows={4} />
-            <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
-              Active
-            </label>
-            <button type="button" onClick={onCreateAnn} disabled={isBusy("ann:create")}>
-              Create
-            </button>
+        <div className="adSection">
+          <div className="adCard">
+            <div className="adCardTop">
+              <h3 className="adCardTitle">Create announcement</h3>
+              {/* <div className="adCardHint">Title + body (optional) · set active status</div> */}
+            </div>
+
+            <div className="adForm">
+              <label className="adField">
+                <span className="adLabel">Title</span>
+                <input className="adInput" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" />
+              </label>
+
+              <label className="adField">
+                <span className="adLabel">Body</span>
+                <textarea
+                  className="adInput adTextarea"
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  placeholder="Body"
+                  rows={4}
+                />
+              </label>
+
+              <label className="adCheck">
+                <input
+                  type="checkbox"
+                  checked={isActive}
+                  onChange={(e) => setIsActive(e.target.checked)}
+                />
+                Active
+              </label>
+
+              <button className="adBtnPrimary" type="button" onClick={onCreateAnn} disabled={isBusy("ann:create")}>
+                Create
+              </button>
+            </div>
           </div>
 
-          <div style={{ display: "grid", gap: 10 }}>
+          <div className="adList">
             {anns.map((a) => (
-              <div key={a.id} style={{ border: "1px solid #333", borderRadius: 12, padding: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                  <div>
-                    <div style={{ fontWeight: 700 }}>{a.title}</div>
-                    {!!a.body && <div style={{ opacity: 0.9, marginTop: 6, whiteSpace: "pre-wrap" }}>{a.body}</div>}
-                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 8 }}>
-                      {new Date(a.createdAt).toLocaleString()} · {a.isActive ? "ACTIVE" : "INACTIVE"}
+              <div key={a.id} className="adCard">
+                <div className="adAnnRow">
+                  <div className="adAnnMain">
+                    <div className="adAnnTitle">{a.title}</div>
+                    {!!a.body && <div className="adAnnBody">{a.body}</div>}
+                    <div className="adMeta">
+                      {new Date(a.createdAt).toLocaleString()}  {a.isActive ? "ACTIVE" : "INACTIVE"}
                     </div>
                   </div>
 
-                  <div style={{ display: "grid", gap: 8, alignContent: "start" }}>
+                  <div className="adAnnActions">
                     <button
+                      className="adBtn"
                       type="button"
                       onClick={() => onToggleActive(a)}
                       disabled={isBusy(`ann:toggle:${a.id}`)}
@@ -404,9 +441,9 @@ export default function AdminPage() {
                       {a.isActive ? "Deactivate" : "Activate"}
                     </button>
                     <button
+                      className="adBtnDanger"
                       type="button"
                       onClick={() => onDeleteAnn(a.id)}
-                      style={{ color: "crimson" }}
                       disabled={isBusy(`ann:delete:${a.id}`)}
                     >
                       Delete
@@ -416,233 +453,340 @@ export default function AdminPage() {
               </div>
             ))}
 
-            {!loading && !anns.length && <div style={{ opacity: 0.7 }}>No announcements yet.</div>}
+            {!loading && !anns.length && <div className="adMuted">No announcements yet.</div>}
           </div>
         </div>
       )}
+
+
+
+
+
+
 
       {/* ------------------- MODERATION POSTS ------------------- */}
       {tab === "mod" && (
-        <div style={{ display: "grid", gap: 10 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <h3 style={{ margin: 0 }}>Moderation — Posts</h3>
-            <div style={{ marginLeft: "auto" }}>
-              <button type="button" onClick={refreshPostsOnly}>
-                Refresh posts
-              </button>
-            </div>
+        <div className="adSection">
+          <div className="adToolbar">
+            <h3 className="adH3">Moderation — Posts</h3>
+            <button className="adBtn" type="button" onClick={refreshPostsOnly}>
+              Refresh posts
+            </button>
           </div>
 
-          {modPosts.map((p) => (
-            <div key={p.id} style={{ border: "1px solid #333", borderRadius: 12, padding: 12 }}>
-              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <div style={{ fontWeight: 700 }}>
-                  Post #{p.id} · @{p.author?.username ?? "user"}
+          <div className="adGrid">
+            {modPosts.map((p) => (
+              <div key={p.id} className="adPostCard">
+                <div className="adPostTop">
+                  <div className="adPostTitle">
+                    Post #{p.id}  @{p.author?.username ?? "user"}
+                  </div>
+                  <div className="adMeta">{new Date(p.createdAt).toLocaleString()}</div>
                 </div>
-                <div style={{ marginLeft: "auto", fontSize: 12, opacity: 0.75 }}>
-                  {new Date(p.createdAt).toLocaleString()}
+
+                <div className="adPostMetaLine">
+                  Likes: {p._count?.likes ?? 0} Comments: {p._count?.comments ?? 0}
                 </div>
-              </div>
 
-              <div style={{ fontSize: 12, opacity: 0.8, marginTop: 6 }}>
-                Likes: {p._count?.likes ?? 0} · Comments: {p._count?.comments ?? 0}
-              </div>
-
-              {!!p.author?.bannedUntil && (
-                <div style={{ fontSize: 12, marginTop: 6, color: "salmon" }}>
-                  BANNED UNTIL: {new Date(p.author.bannedUntil).toLocaleString()}
-                </div>
-              )}
-
-              <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-                <img src={p.imageUrl} alt="" style={{ width: "100%", borderRadius: 12 }} />
-                {(p.caption || p.location) && (
-                  <div style={{ opacity: 0.9 }}>
-                    {p.location ? <div>📍 {p.location}</div> : null}
-                    {p.caption ? <div>{p.caption}</div> : null}
+                {!!p.author?.bannedUntil && (
+                  <div className="adWarn">
+                    BANNED UNTIL: {new Date(p.author.bannedUntil).toLocaleString()}
                   </div>
                 )}
+
+                <div className="adThumb">
+                  <img src={p.imageUrl} alt="" className="adThumbImg" />
+                </div>
+
+                {(p.caption || p.location) && (
+                  <div className="adPostText">
+                    {p.location ? <div className="adLine">📍 {p.location}</div> : null}
+                    {p.caption ? <div className="adLine">{p.caption}</div> : null}
+                  </div>
+                )}
+
+                <div className="adActionsRow">
+                  <button
+                    className="adBtnDanger"
+                    type="button"
+                    onClick={() => onAdminDeletePost(p.id)}
+                    disabled={isBusy(`post:delete:${p.id}`)}
+                  >
+                    Delete post
+                  </button>
+
+                  <button
+                    className="adBtn"
+                    type="button"
+                    onClick={() => onWarnUser(p.author.id)}
+                    disabled={isBusy(`user:warn:${p.author.id}`)}
+                  >
+                    Warn
+                  </button>
+
+                  <button
+                    className="adBtn"
+                    type="button"
+                    onClick={() => onBanUser(p.author.id)}
+                    disabled={isBusy(`user:ban:${p.author.id}`)}
+                  >
+                    Ban
+                  </button>
+                </div>
               </div>
+            ))}
+          </div>
 
-              <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  onClick={() => onAdminDeletePost(p.id)}
-                  disabled={isBusy(`post:delete:${p.id}`)}
-                  style={{ color: "crimson" }}
-                >
-                  Delete post
-                </button>
-
-                <button type="button" onClick={() => onWarnUser(p.author.id)} disabled={isBusy(`user:warn:${p.author.id}`)}>
-                  Warn user
-                </button>
-
-                <button type="button" onClick={() => onBanUser(p.author.id)} disabled={isBusy(`user:ban:${p.author.id}`)}>
-                  Ban user
-                </button>
-              </div>
-            </div>
-          ))}
-
-          {!loading && !modPosts.length && <div style={{ opacity: 0.7 }}>No posts found.</div>}
+          {!loading && !modPosts.length && <div className="adMuted">No posts found.</div>}
         </div>
       )}
 
+
+
+
       {/* ------------------- REPORTS ------------------- */}
       {tab === "reports" && (
-        <div style={{ display: "grid", gap: 10 }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <h3 style={{ margin: 0 }}>Reports</h3>
+        <div className="adSection">
+          <div className="adToolbar adToolbarWrap">
+            <h3 className="adH3">Reports</h3>
 
-            <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              Status:
-              <select value={reportStatus} onChange={(e) => setReportStatus(e.target.value as any)}>
+            <label className="adInline">
+              <span className="adMuted">Status</span>
+              <select className="adInput adSelect" value={reportStatus} onChange={(e) => setReportStatus(e.target.value as any)}>
                 <option value="OPEN">OPEN</option>
                 <option value="RESOLVED">RESOLVED</option>
               </select>
             </label>
 
-            <div style={{ marginLeft: "auto" }}>
-              <button type="button" onClick={refreshReportsOnly}>
+            <div className="adToolbarRight">
+              <button className="adBtn" type="button" onClick={refreshReportsOnly}>
                 Refresh reports
               </button>
             </div>
           </div>
 
-          {reports.map((r) => {
-            const targetUserId = inferTargetUserId(r);
-            const targetLabel =
-              r.targetType === "POST"
-                ? `POST #${r.postId ?? ""}`
-                : r.targetType === "COMMENT"
-                ? `COMMENT #${r.commentId ?? ""}`
-                : `USER #${r.targetUserId ?? ""}`;
+          <div className="adReportsLayout">
+            <div className="adReportsLeft">
+              <div className="adSubTitle">Post reports</div>
 
-            return (
-              <div key={r.id} style={{ border: "1px solid #333", borderRadius: 12, padding: 12 }}>
-                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                  <div style={{ fontWeight: 800 }}>
-                    Report #{r.id} · {r.status} · {targetLabel}
-                  </div>
-                  <div style={{ marginLeft: "auto", fontSize: 12, opacity: 0.75 }}>
-                    {new Date(r.createdAt).toLocaleString()}
-                  </div>
-                </div>
+              <div className="adGrid">
+                {reportPosts.map((r) => {
+                  const targetUserId = inferTargetUserId(r);
+                  const targetLabel = `POST #${r.postId ?? ""}`;
 
-                <div style={{ marginTop: 6 }}>
-                  <div><b>Reason:</b> {r.reason}</div>
-                  {!!r.message && (
-                    <div style={{ opacity: 0.9, marginTop: 4, whiteSpace: "pre-wrap" }}>
-                      <b>Message:</b> {r.message}
+                  return (
+                    <div key={r.id} className="adPostCard">
+                      <div className="adPostTop">
+                        <div className="adPostTitle">
+                          Report #{r.id}  {r.status}  {targetLabel}
+                        </div>
+                        <div className="adMeta">{new Date(r.createdAt).toLocaleString()}</div>
+                      </div>
+
+                      <div className="adPostText">
+                        <div className="adLine">
+                          <b>Reason:</b> {r.reason}
+                        </div>
+                        {!!r.message && (
+                          <div className="adLine">
+                            <b>Message:</b> {r.message}
+                          </div>
+                        )}
+                        <div className="adMeta">
+                          Reporter: @{r.reporter?.username ?? "unknown"}{" "}
+                          {r.reporter?.email ? `(${r.reporter.email})` : ""}
+                          {r.handledBy?.username ? ` · handled by @${r.handledBy.username}` : ""}
+                        </div>
+                      </div>
+
+                      {r.post && (
+                        <>
+                          <div className="adThumb">
+                            <img src={r.post.imageUrl} alt="" className="adThumbImg" />
+                          </div>
+                          {!!r.post.caption && <div className="adPostText">{r.post.caption}</div>}
+                        </>
+                      )}
+
+                      <div className="adActionsRow">
+                        {r.status === "OPEN" && (
+                          <button
+                            className="adBtn"
+                            type="button"
+                            onClick={() => onResolveReport(r.id)}
+                            disabled={isBusy(`report:resolve:${r.id}`)}
+                          >
+                            Resolve
+                          </button>
+                        )}
+
+                        {r.targetType === "POST" && r.postId ? (
+                          <button
+                            className="adBtnDanger"
+                            type="button"
+                            onClick={() => onAdminDeletePost(Number(r.postId))}
+                            disabled={isBusy(`post:delete:${Number(r.postId)}`)}
+                          >
+                            Delete post
+                          </button>
+                        ) : null}
+
+                        {targetUserId ? (
+                          <>
+                            <button
+                              className="adBtn"
+                              type="button"
+                              onClick={() => onWarnUser(targetUserId)}
+                              disabled={isBusy(`user:warn:${targetUserId}`)}
+                            >
+                              Warn
+                            </button>
+                            <button
+                              className="adBtn"
+                              type="button"
+                              onClick={() => onBanUser(targetUserId)}
+                              disabled={isBusy(`user:ban:${targetUserId}`)}
+                            >
+                              Ban
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
                     </div>
-                  )}
-                  <div style={{ fontSize: 12, opacity: 0.75, marginTop: 6 }}>
-                    Reporter: @{r.reporter?.username ?? "unknown"} {r.reporter?.email ? `(${r.reporter.email})` : ""}
-                    {r.handledBy?.username ? ` · handled by @${r.handledBy.username}` : ""}
-                  </div>
-                </div>
-
-                {r.post && (
-                  <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-                    <div style={{ fontWeight: 700 }}>Post preview</div>
-                    <img src={r.post.imageUrl} alt="" style={{ width: "100%", borderRadius: 12 }} />
-                    {!!r.post.caption && <div style={{ opacity: 0.9 }}>{r.post.caption}</div>}
-                  </div>
-                )}
-
-                {r.comment && (
-                  <div style={{ marginTop: 10 }}>
-                    <div style={{ fontWeight: 700 }}>Comment preview</div>
-                    <div style={{ opacity: 0.9 }}>
-                      @{r.comment.author?.username ?? "user"}: {r.comment.text}
-                    </div>
-                  </div>
-                )}
-
-                {r.targetUser && (
-                  <div style={{ marginTop: 10 }}>
-                    <div style={{ fontWeight: 700 }}>User</div>
-                    <div style={{ opacity: 0.9 }}>
-                      @{r.targetUser.username ?? "user"} {r.targetUser.email ? `(${r.targetUser.email})` : ""}
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                  {r.status === "OPEN" && (
-                    <button
-                      type="button"
-                      onClick={() => onResolveReport(r.id)}
-                      disabled={isBusy(`report:resolve:${r.id}`)}
-                    >
-                      Resolve
-                    </button>
-                  )}
-
-                  {r.targetType === "POST" && r.postId ? (
-                    <button
-                      type="button"
-                      onClick={() => onAdminDeletePost(Number(r.postId))}
-                      style={{ color: "crimson" }}
-                      disabled={isBusy(`post:delete:${Number(r.postId)}`)}
-                    >
-                      Delete post
-                    </button>
-                  ) : null}
-
-                  {targetUserId ? (
-                    <>
-                      <button type="button" onClick={() => onWarnUser(targetUserId)} disabled={isBusy(`user:warn:${targetUserId}`)}>
-                        Warn user
-                      </button>
-                      <button type="button" onClick={() => onBanUser(targetUserId)} disabled={isBusy(`user:ban:${targetUserId}`)}>
-                        Ban user
-                      </button>
-                    </>
-                  ) : null}
-                </div>
+                  );
+                })}
               </div>
-            );
-          })}
 
-          {!loading && !reports.length && <div style={{ opacity: 0.7 }}>No reports found.</div>}
+              {!loading && !reportPosts.length && <div className="adMuted">No post reports.</div>}
+            </div>
+
+            <aside className="adReportsRight">
+              <div className="adSubTitle">Comment / User reports</div>
+
+              <div className="adSideList">
+                {reportOther.map((r) => {
+                  const targetUserId = inferTargetUserId(r);
+                  const targetLabel =
+                    r.targetType === "COMMENT"
+                      ? `COMMENT #${r.commentId ?? ""}`
+                      : `USER #${r.targetUserId ?? ""}`;
+
+                  return (
+                    <div key={r.id} className="adSideCard">
+                      <div className="adSideTop">
+                        <div className="adSideTitle">Report #{r.id} · {targetLabel}</div>
+                        <div className={`adPill ${r.status === "OPEN" ? "open" : "resolved"}`}>{r.status}</div>
+                      </div>
+
+                      <div className="adSideBody">
+                        <div><b>Reason:</b> {r.reason}</div>
+                        {!!r.message && <div><b>Message:</b> {r.message}</div>}
+
+                        <div className="adMeta">
+                          {new Date(r.createdAt).toLocaleString()}
+                        </div>
+
+                        {r.comment && (
+                          <div className="adSidePreview">
+                            <div className="adMeta">Comment preview</div>
+                            <div className="adSmall">
+                              @{r.comment.author?.username ?? "user"}: {r.comment.text}
+                            </div>
+                          </div>
+                        )}
+
+                        {r.targetUser && (
+                          <div className="adSidePreview">
+                            <div className="adMeta">User</div>
+                            <div className="adSmall">
+                              @{r.targetUser.username ?? "user"}{" "}
+                              {r.targetUser.email ? `(${r.targetUser.email})` : ""}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="adSideActions">
+                        {r.status === "OPEN" && (
+                          <button
+                            className="adBtn"
+                            type="button"
+                            onClick={() => onResolveReport(r.id)}
+                            disabled={isBusy(`report:resolve:${r.id}`)}
+                          >
+                            Resolve
+                          </button>
+                        )}
+
+                        {targetUserId ? (
+                          <>
+                            <button
+                              className="adBtn"
+                              type="button"
+                              onClick={() => onWarnUser(targetUserId)}
+                              disabled={isBusy(`user:warn:${targetUserId}`)}
+                            >
+                              Warn
+                            </button>
+                            <button
+                              className="adBtn"
+                              type="button"
+                              onClick={() => onBanUser(targetUserId)}
+                              disabled={isBusy(`user:ban:${targetUserId}`)}
+                            >
+                              Ban
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {!loading && !reportOther.length && <div className="adMuted">No comment/user reports.</div>}
+              </div>
+            </aside>
+          </div>
         </div>
       )}
 
-      {/* ------------------- LOGS ------------------- */}
+
+
+
       {tab === "logs" && (
-        <div style={{ border: "1px solid #333", borderRadius: 12, padding: 12 }}>
-          <h3 style={{ marginTop: 0 }}>AdminLog (last 100)</h3>
+        <div className="adSection">
+          <div className="adCard">
+            <div className="adCardTop">
+              <h3 className="adCardTitle">AdminLog (last 100)</h3>
+              <div className="adCardHint">actions history</div>
+            </div>
 
-          <div style={{ display: "grid", gap: 8 }}>
-            {logs.map((l) => (
-              <div key={l.id} style={{ borderBottom: "1px solid #2a2a2a", paddingBottom: 8 }}>
-                <div style={{ fontWeight: 700 }}>
-                  {l.action}{" "}
-                  <span style={{ fontWeight: 400, opacity: 0.8 }}>
-                    · {new Date(l.createdAt).toLocaleString()}
-                  </span>
-                </div>
-
-                <div style={{ fontSize: 13, opacity: 0.85 }}>
-                  Admin: @{l.admin?.username ?? "admin"} · {l.entity ? `${l.entity}#${l.entityId ?? ""}` : ""}
-                </div>
-
-                {l.meta?.title && (
-                  <div style={{ fontSize: 13, opacity: 0.85, marginTop: 6 }}>
-                    Title: <b>{l.meta.title}</b>
+            <div className="adLogs">
+              {logs.map((l) => (
+                <div key={l.id} className="adLogRow">
+                  <div className="adLogTitle">
+                    {l.action} <span className="adMeta"> {new Date(l.createdAt).toLocaleString()}</span>
                   </div>
-                )}
-                {l.meta?.days && (
-                  <div style={{ fontSize: 13, opacity: 0.85, marginTop: 6 }}>
-                    Days: <b>{l.meta.days}</b>
-                  </div>
-                )}
-              </div>
-            ))}
 
-            {!loading && !logs.length && <div style={{ opacity: 0.7 }}>No logs yet.</div>}
+                  <div className="adSmall">
+                    Admin: @{l.admin?.username ?? "admin"}  {l.entity ? `${l.entity}#${l.entityId ?? ""}` : ""}
+                  </div>
+
+                  {l.meta?.title && (
+                    <div className="adSmall">
+                      Title: <b>{l.meta.title}</b>
+                    </div>
+                  )}
+                  {l.meta?.days && (
+                    <div className="adSmall">
+                      Days: <b>{l.meta.days}</b>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {!loading && !logs.length && <div className="adMuted">No logs yet.</div>}
+            </div>
           </div>
         </div>
       )}

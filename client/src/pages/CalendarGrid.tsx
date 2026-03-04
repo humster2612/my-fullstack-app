@@ -1,4 +1,3 @@
-// client/src/components/CalendarGrid.tsx
 import React from "react";
 
 export type GridItem = {
@@ -9,20 +8,20 @@ export type GridItem = {
   status?: string;
 };
 
-const HOURS = Array.from({ length: 12 }, (_, i) => i + 8); // 08–19
+const HOURS = Array.from({ length: 12 }, (_, i) => i + 8); 
 
 function getBookingColor(status?: string) {
   switch (status) {
     case "confirmed":
-      return "#2e7d32"; // зелёный
+      return "#2e7d32"; 
     case "pending":
-      return "#5b458a"; // фиолетовый
+      return "#5b458a"; 
     case "declined":
     case "cancelled":
     case "canceled":
-      return "#555555"; // серый
+      return "#555555"; 
     case "done":
-      return "#1976d2"; // синий
+      return "#1976d2"; 
     default:
       return "#5b458a";
   }
@@ -56,7 +55,6 @@ export default function CalendarGrid({
         overflow: "hidden",
       }}
     >
-      {/* header пустой слева */}
       <div style={{ background: "#151515" }} />
       {weekDays.map((d) => (
         <div

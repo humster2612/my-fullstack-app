@@ -1,4 +1,3 @@
-// server/scripts/backfillUsernames.js
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
@@ -13,7 +12,7 @@ async function main() {
 
   for (const u of users) {
     let candidate;
-    // подбираем уникальный username
+
     for (;;) {
       candidate = makeNameFromEmail(u.email);
       const exists = await prisma.user.findUnique({ where: { username: candidate } }).catch(() => null);

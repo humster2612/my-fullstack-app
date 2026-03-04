@@ -2,12 +2,12 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 const FROM = "http://localhost:4000";
-const TO = process.env.PUBLIC_BASE_URL; // обязательно задай при запуске
+const TO = process.env.PUBLIC_BASE_URL; 
 
 async function main() {
   if (!TO) throw new Error("Set PUBLIC_BASE_URL in env before running script");
 
-  // Posts
+  
   const posts = await prisma.post.findMany({
     select: { id: true, imageUrl: true, videoUrl: true },
   });
@@ -25,7 +25,7 @@ async function main() {
     }
   }
 
-  // Users avatars
+
   const users = await prisma.user.findMany({ select: { id: true, avatarUrl: true } });
   for (const u of users) {
     const nextAvatar = u.avatarUrl?.startsWith(FROM) ? u.avatarUrl.replace(FROM, TO) : u.avatarUrl;

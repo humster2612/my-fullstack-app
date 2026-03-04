@@ -1,4 +1,3 @@
-// client/src/pages/ProviderSchedulePage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -12,11 +11,10 @@ import {
 
 import "../styles/providerShedule.css";
 
-/* ===== helper функции даты ===== */
 
 function startOfWeek(d = new Date()) {
   const x = new Date(d);
-  const day = (x.getDay() + 6) % 7; // Mon = 0
+  const day = (x.getDay() + 6) % 7; 
   x.setHours(0, 0, 0, 0);
   x.setDate(x.getDate() - day);
   return x;
@@ -28,7 +26,7 @@ function addDays(d: Date, i: number) {
   return x;
 }
 
-/* ===== типы ===== */
+
 
 type Me = { id: number; username: string };
 
@@ -52,7 +50,6 @@ type BookingRequest = {
   client: { id: number; username: string; avatarUrl?: string | null };
 };
 
-/* ===== основной компонент ===== */
 
 export default function ProviderSchedulePage() {
   const [me, setMe] = useState<Me | null>(null);
@@ -70,7 +67,6 @@ export default function ProviderSchedulePage() {
 
   const [toast, setToast] = useState<string | null>(null);
 
-  /* ===== загрузка me ===== */
 
   useEffect(() => {
     (async () => {
@@ -87,7 +83,6 @@ export default function ProviderSchedulePage() {
     })();
   }, []);
 
-  /* ===== загрузка календаря ===== */
 
   async function loadCalendar(username: string) {
     try {
@@ -119,7 +114,6 @@ export default function ProviderSchedulePage() {
     loadCalendar(me.username);
   }, [me?.username]);
 
-  /* ===== загрузка запросов ко мне ===== */
 
   async function loadRequests() {
     try {
@@ -139,7 +133,6 @@ export default function ProviderSchedulePage() {
     loadRequests();
   }, []);
 
-  /* ===== создание busy ===== */
 
   const [newFrom, setNewFrom] = useState("09:00");
   const [newTo, setNewTo] = useState("12:00");
@@ -181,7 +174,6 @@ export default function ProviderSchedulePage() {
     }
   }
 
-  /* ===== элементы для ячеек календаря ===== */
 
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
@@ -228,7 +220,6 @@ export default function ProviderSchedulePage() {
     return list.sort((a, b) => a.from.getTime() - b.from.getTime());
   }, [busy, bookings]);
 
-  /* ===== изменение статуса брони (requests) ===== */
 
   async function changeStatus(id: number, action: "confirm" | "decline" | "done") {
     if (!me?.username) return;
@@ -247,11 +238,9 @@ export default function ProviderSchedulePage() {
     }
   }
 
-  /* ===== рендер ===== */
 
   return (
     <>
-      {/* ТОП: календарь слева + Add busy справа */}
       <div className="psLayout">
         <div className="psLeft">
           <div className="psHeaderRow">
@@ -296,7 +285,6 @@ export default function ProviderSchedulePage() {
                       hour={h}
                       items={items}
                       onPick={() => {
-                        // тут сейчас ничего не делаем
                       }}
                       onDeleteBusy={handleDeleteBusy}
                     />
@@ -310,7 +298,6 @@ export default function ProviderSchedulePage() {
           {loadingCal && <div className="psMuted">Loading calendar…</div>}
         </div>
 
-        {/* справа: Add busy interval */}
         <aside className="psRight">
           <div className="psCard">
             <div className="psCardTop">
@@ -364,7 +351,6 @@ export default function ProviderSchedulePage() {
         </aside>
       </div>
 
-      {/* Requests — НИЖЕ */}
       <div className="psRequests">
         <h2>Requests to me</h2>
         {errReq && <div className="psErrText">{errReq}</div>}
@@ -415,7 +401,6 @@ export default function ProviderSchedulePage() {
   );
 }
 
-/* ===== вспомогательные штуки для отрисовки ===== */
 
 type HourCellProps = {
   day: Date;
@@ -599,7 +584,6 @@ function SlotChip({ item: it, onDeleteBusy }: SlotChipProps) {
   );
 }
 
-/* ===== цвет статусов ===== */
 
 function getStatusColor(status: string) {
   switch (status) {

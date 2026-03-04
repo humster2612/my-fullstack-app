@@ -1,6 +1,6 @@
 .bookLayout{
     display:grid;
-    grid-template-columns: minmax(0, 1fr) 420px; /* было 380px */
+    grid-template-columns: minmax(0, 1fr) 420px; 
     gap: 24px;
     max-width: 1180px;
     margin: 0 auto;
@@ -48,7 +48,7 @@
   
   .btn:hover{ background: rgba(255,255,255,.06); }
   
-  /* Calendar */
+ 
   .calendarWrap{
     margin-top: 10px;
     border: 1px solid rgba(255,255,255,.10);
@@ -89,12 +89,10 @@
     background: rgba(0,0,0,.15);
   }
   
-  /* Улучшаем ячейки HourCell без переписывания компонента */
   .calendarGrid > div{
     box-sizing: border-box;
   }
   
-  /* Right panel */
   .bookRight{
     position: sticky;
     top: 16px;
@@ -147,7 +145,7 @@
   
   .input{
     width: 100%;
-    padding: 9px 10px;                 /* было 10px 12px */
+    padding: 9px 10px;                 
     border-radius: 12px;
     border: 1px solid rgba(255,255,255,.12);
     background: rgba(0,0,0,.25);
@@ -155,7 +153,7 @@
     outline: none;
     box-sizing: border-box;
   
-    min-height: 44px;                  /* фикс чтобы одинаково */
+    min-height: 44px;                
     line-height: 1.2;
   }
   
@@ -197,7 +195,7 @@
     margin-top: 10px;
   }
   
-  /* Mobile */
+
   @media (max-width: 980px){
     .bookLayout{
       grid-template-columns: 1fr;
